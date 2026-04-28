@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply text-gray-800 bg-gray-50;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .step-option-btn {
+    @apply w-full text-left px-5 py-4 rounded-xl border-2 border-gray-200
+           bg-white text-gray-800 font-medium text-base
+           hover:border-ccss-primary hover:bg-ccss-light
+           focus:outline-none focus:ring-2 focus:ring-ccss-primary focus:ring-offset-2
+           active:bg-ccss-light
+           transition-all duration-150 cursor-pointer;
+  }
+
+  .step-option-btn.selected {
+    @apply border-ccss-primary bg-ccss-light text-ccss-dark;
+  }
+}
