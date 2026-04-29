@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { PatientPublicData } from '@/lib/types'
 import UTLEForm from '@/components/UTLEForm'
@@ -25,8 +26,15 @@ function ErrorPage({ message }: { message: string }) {
 function CCSSHeader() {
   return (
     <div className="text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ccss-primary mb-3">
-        <span className="text-white font-bold text-xl">CCSS</span>
+      <div className="flex justify-center mb-3">
+        <Image
+          src="/logos/ccss-logo.jpg"
+          alt="Caja Costarricense de Seguro Social"
+          width={80}
+          height={80}
+          className="rounded-full dark:invert"
+          priority
+        />
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
         Caja Costarricense de Seguro Social
