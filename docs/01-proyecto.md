@@ -3,8 +3,8 @@
 ## Descripción general
 
 **Cliente:** Caja Costarricense de Seguro Social (CCSS) — Unidad Técnica de Listas de Espera (UTLE)
-**Desarrollado por:** CoCo Tech AI
-**Contacto CoCo:** Andres Zapata — a.zapata@cocotech.ai
+**Desarrollado por:** COCO Tech AI
+**Contacto CoCo:** Andres David Zapata Cano — a.zapata@cocotech.ai
 **Fecha límite:** 15 de junio de 2026
 
 ---
