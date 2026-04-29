@@ -1,0 +1,4 @@
+id_registro,nombre_paciente,numero_asegurado,correo,telefono,centro_medico,tipo_atencion,especialidad,nombre_servicio,lateralidad,ultimos_4_asegurado
+REG-2026-00001,María López Hernández,1-2345-6789,maria.lopez@gmail.com,88881111,Hospital San Juan de Dios,cirugia,Ortopedia,Artroscopia de rodilla,Derecha,6789
+REG-2026-00002,Carlos Rodríguez Mora,2-3456-7890,carlos.r@hotmail.com,77772222,Hospital México,consulta,Cardiología,,,7890
+REG-2026-00003,Ana Jiménez Castro,3-4567-8901,ana.jimenez@gmail.com,,Hospital Calderón Guardia,procedimiento,Gastroenterología,Colonoscopía diagnóstica,,8901

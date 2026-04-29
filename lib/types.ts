@@ -10,7 +10,6 @@ export type EstadoFinal =
   | 'ACTIVO'
 
 export interface PatientPublicData {
-  id_registro: string
   nombre_paciente: string
   tipo_atencion: TipoAtencion
   nombre_servicio: string | null
@@ -20,7 +19,7 @@ export interface PatientPublicData {
 }
 
 export interface FormAnswers {
-  id_registro: string
+  token: string
   canal: 'correo'
   paso_1_consentimiento?: 'si_autorizo' | 'no_autorizo'
   paso_2_verificacion?: 'exitosa' | 'fallida'

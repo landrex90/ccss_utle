@@ -6,9 +6,9 @@ const MAX_ATTEMPTS = 3
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { id_registro, digits } = body
+    const { token, digits } = body
 
-    if (!id_registro || !digits) {
+    if (!token || !digits) {
       return NextResponse.json({ error: 'Parámetros faltantes' }, { status: 400 })
     }
 
@@ -19,7 +19,20 @@ export async function POST(request: NextRequest) {
     const supabase = createClient()
     const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? null
 
-    // Contar intentos previos fallidos en el registro
+    // Resolver token → id_registro + ultimos_4_asegurado (nunca expuesto al frontend)
+    const { data: registro, error } = await supabase
+      .from('registros')
+      .select('id_registro, ultimos_4_asegurado')
+      .eq('token', token)
+      .single()
+
+    if (error || !registro) {
+      return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
+    }
+
+    const { id_registro } = registro
+
+    // Contar intentos previos fallidos
     const { count } = await supabase
       .from('intentos_validacion')
       .select('*', { count: 'exact', head: true })
@@ -30,17 +43,6 @@ export async function POST(request: NextRequest) {
 
     if (attemptsSoFar >= MAX_ATTEMPTS) {
       return NextResponse.json({ valid: false, attempts_remaining: 0, locked: true }, { status: 200 })
-    }
-
-    // Obtener los últimos 4 dígitos reales desde la BD (nunca expuesto al frontend)
-    const { data: registro, error } = await supabase
-      .from('registros')
-      .select('ultimos_4_asegurado')
-      .eq('id_registro', id_registro)
-      .single()
-
-    if (error || !registro) {
-      return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
     }
 
     const valid = registro.ultimos_4_asegurado === digits

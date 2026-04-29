@@ -5,13 +5,26 @@ import { FormAnswers } from '@/lib/types'
 export async function POST(request: NextRequest) {
   try {
     const body: FormAnswers = await request.json()
-    const { id_registro } = body
+    const { token } = body
 
-    if (!id_registro) {
-      return NextResponse.json({ error: 'id_registro requerido' }, { status: 400 })
+    if (!token) {
+      return NextResponse.json({ error: 'token requerido' }, { status: 400 })
     }
 
     const supabase = createClient()
+
+    // Resolver token → id_registro (nunca viaja en la URL)
+    const { data: reg, error: regError } = await supabase
+      .from('registros')
+      .select('id_registro')
+      .eq('token', token)
+      .single()
+
+    if (regError || !reg) {
+      return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
+    }
+
+    const id_registro = reg.id_registro
 
     // Insertar respuesta
     const { error: insertError } = await supabase.from('respuestas').insert({

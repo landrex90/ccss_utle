@@ -2,8 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { PatientPublicData } from '@/lib/types'
 import UTLEForm from '@/components/UTLEForm'
 
+export const dynamic = 'force-dynamic'
+
 interface Props {
-  searchParams: { id?: string; token?: string }
+  searchParams: { t?: string }
 }
 
 function ErrorPage({ message }: { message: string }) {
@@ -11,9 +13,9 @@ function ErrorPage({ message }: { message: string }) {
     <main className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <CCSSHeader />
-        <div className="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <p className="text-gray-600 text-lg leading-relaxed">{message}</p>
-          <p className="mt-4 text-ccss-primary font-semibold text-lg">905-MISALUD</p>
+        <div className="mt-8 card p-8">
+          <p className="text-gray-700 dark:text-gray-200 text-lg leading-relaxed">{message}</p>
+          <p className="mt-4 text-ccss-primary dark:text-ccss-accent font-semibold text-lg">905-MISALUD</p>
         </div>
       </div>
     </main>
@@ -26,10 +28,10 @@ function CCSSHeader() {
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ccss-primary mb-3">
         <span className="text-white font-bold text-xl">CCSS</span>
       </div>
-      <p className="text-sm text-gray-500 font-medium">
+      <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
         Caja Costarricense de Seguro Social
       </p>
-      <p className="text-xs text-gray-400 mt-1">
+      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
         Unidad Técnica de Listas de Espera
       </p>
     </div>
@@ -37,9 +39,9 @@ function CCSSHeader() {
 }
 
 export default async function UTLEPage({ searchParams }: Props) {
-  const { id, token } = searchParams
+  const { t } = searchParams
 
-  if (!id || !token) {
+  if (!t) {
     return <ErrorPage message="El enlace no es válido. Por favor verifique que el enlace sea el correcto o comuníquese al 905-MISALUD." />
   }
 
@@ -48,17 +50,13 @@ export default async function UTLEPage({ searchParams }: Props) {
   const { data: registro, error } = await supabase
     .from('registros')
     .select(
-      'id_registro, nombre_paciente, tipo_atencion, nombre_servicio, especialidad, centro_medico, lateralidad, token, link_expires_at, estado'
+      'nombre_paciente, tipo_atencion, nombre_servicio, especialidad, centro_medico, lateralidad, link_expires_at, estado'
     )
-    .eq('id_registro', id)
+    .eq('token', t)
     .single()
 
   if (error || !registro) {
     return <ErrorPage message="No encontramos su registro en el sistema. Por favor comuníquese al 905-MISALUD." />
-  }
-
-  if (registro.token !== token) {
-    return <ErrorPage message="El enlace no es válido. Por favor comuníquese al 905-MISALUD." />
   }
 
   if (new Date(registro.link_expires_at) < new Date()) {
@@ -70,7 +68,6 @@ export default async function UTLEPage({ searchParams }: Props) {
   }
 
   const patient: PatientPublicData = {
-    id_registro: registro.id_registro,
     nombre_paciente: registro.nombre_paciente,
     tipo_atencion: registro.tipo_atencion,
     nombre_servicio: registro.nombre_servicio ?? null,
@@ -80,10 +77,10 @@ export default async function UTLEPage({ searchParams }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 py-8 px-4">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <div className="max-w-lg mx-auto">
         <CCSSHeader />
-        <UTLEForm patient={patient} />
+        <UTLEForm patient={patient} token={t} />
       </div>
     </main>
   )

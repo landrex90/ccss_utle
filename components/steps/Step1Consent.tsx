@@ -1,15 +1,18 @@
 import StepOption from '@/components/StepOption'
 
 interface Props {
-  nombrePaciente: string
-  onAnswer: (authorized: boolean) => void
+  nombrePaciente:  string
+  onAnswer:        (authorized: boolean) => void
+  pendingSelection?: string | null
 }
 
-export default function Step1Consent({ nombrePaciente, onAnswer }: Props) {
+export default function Step1Consent({ nombrePaciente, onAnswer, pendingSelection }: Props) {
+  const disabled = !!pendingSelection
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <p className="text-gray-800 text-base leading-relaxed whitespace-pre-line">
+      <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
+        <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed whitespace-pre-line">
           {`Hola ${nombrePaciente}, somos el asistente virtual de la Caja Costarricense de Seguro Social (CCSS).
 
 Le contactamos para actualizar la información de su atención pendiente en lista de espera.
@@ -22,21 +25,17 @@ En ningún momento le solicitaremos contraseñas, cuentas bancarias ni códigos 
         </p>
       </div>
 
-      <p className="text-gray-700 font-semibold text-base px-1">
+      <p className="text-gray-700 dark:text-gray-200 font-semibold text-base px-1">
         ¿Autoriza el uso de la información que proporcione para estos fines?
       </p>
 
       <div className="space-y-3">
-        <StepOption
-          value="si"
-          label="1 · Sí, autorizo"
-          onClick={() => onAnswer(true)}
-        />
-        <StepOption
-          value="no"
-          label="2 · No autorizo"
-          onClick={() => onAnswer(false)}
-        />
+        <StepOption value="si" label="1 · Sí, autorizo"
+          selectedValue={pendingSelection ?? undefined} disabled={disabled}
+          onClick={() => onAnswer(true)} />
+        <StepOption value="no" label="2 · No autorizo"
+          selectedValue={pendingSelection ?? undefined} disabled={disabled}
+          onClick={() => onAnswer(false)} />
       </div>
     </div>
   )
