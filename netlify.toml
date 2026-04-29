@@ -7,3 +7,11 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Preprod: rama develop
+[context.branch-deploy]
+  command = "npm run build"
+
+# Producción: rama main
+[context.production]
+  command = "npm run build"

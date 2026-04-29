@@ -4,13 +4,22 @@
  * Ese CSV se puede abrir directamente en Excel o importar a Google Sheets.
  *
  * Uso:
- *   node --env-file=.env.local scripts/export-results.js [resultados.csv]
+ *   node --env-file=.env.local scripts/export-results.js [--campana ID] [archivo.csv]
+ *
+ * Ejemplos:
+ *   node --env-file=.env.local scripts/export-results.js
+ *   node --env-file=.env.local scripts/export-results.js --campana 2026-05-01_HospMexico
+ *   node --env-file=.env.local scripts/export-results.js --campana 2026-05-01_HospMexico resultados_mayo.csv
  */
 
 const fs     = require('fs')
 const { createClient } = require('@supabase/supabase-js')
 
-const [,, outputFile = `resultados_${new Date().toISOString().slice(0,10)}.csv`] = process.argv
+const args       = process.argv.slice(2)
+const campanaArg = args.indexOf('--campana')
+const campanaId  = campanaArg !== -1 ? args[campanaArg + 1] : null
+const suffix     = campanaId ? `_${campanaId}` : ''
+const outputFile = args.find(a => a.endsWith('.csv')) ?? `resultados${suffix}_${new Date().toISOString().slice(0,10)}.csv`
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -26,7 +35,9 @@ function escapeCSV(val) {
 }
 
 async function main() {
-  const { data, error } = await supabase
+  if (campanaId) console.log(`📣 Filtrando por campaña: ${campanaId}`)
+
+  let query = supabase
     .from('respuestas')
     .select(`
       id, created_at, canal, completado, estado_final, paso_abandono,
@@ -36,10 +47,16 @@ async function main() {
       paso_5b_motivo_no_asistir, paso_6_medio_contacto,
       registros (
         id_registro, nombre_paciente, correo, telefono,
-        tipo_atencion, especialidad, centro_medico, estado
+        tipo_atencion, especialidad, centro_medico, estado, campana_id
       )
     `)
     .order('created_at', { ascending: false })
+
+  if (campanaId) {
+    query = query.eq('registros.campana_id', campanaId)
+  }
+
+  const { data, error } = await query
 
   if (error) { console.error('Error:', error.message); process.exit(1) }
 
@@ -50,7 +67,7 @@ async function main() {
 
   const cols = [
     'id_registro', 'nombre_paciente', 'correo', 'telefono',
-    'tipo_atencion', 'especialidad', 'centro_medico',
+    'tipo_atencion', 'especialidad', 'centro_medico', 'campana_id',
     'estado_registro', 'fecha_respuesta', 'canal', 'completado', 'estado_final',
     'paso_abandono', 'consentimiento', 'verificacion', 'intentos_verificacion',
     'info_correcta', 'desea_continuar', 'motivo_retiro',
@@ -68,6 +85,7 @@ async function main() {
       tipo_atencion:          reg.tipo_atencion,
       especialidad:           reg.especialidad,
       centro_medico:          reg.centro_medico,
+      campana_id:             reg.campana_id,
       estado_registro:        reg.estado,
       fecha_respuesta:        r.created_at?.slice(0, 19).replace('T', ' '),
       canal:                  r.canal,

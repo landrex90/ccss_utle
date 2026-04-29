@@ -3,7 +3,7 @@
  * Importa pacientes desde un CSV a Supabase y genera URLs personalizadas.
  *
  * Uso:
- *   node --env-file=.env.local scripts/import-patients.js pacientes.csv https://ccss-utle.netlify.app
+ *   node --env-file=.env.local scripts/import-patients.js pacientes.csv https://ccss-utle.netlify.app [--campana 2026-05-01_HospMexico]
  *
  * Columnas requeridas en el CSV:
  *   id_registro, nombre_paciente, numero_asegurado, correo, centro_medico,
@@ -13,6 +13,7 @@
  *   telefono, especialidad, nombre_servicio, lateralidad
  *
  * El script genera un archivo <archivo>_urls.csv con las URLs personalizadas.
+ * Si se indica --campana, todos los registros quedan marcados con ese ID.
  */
 
 const fs      = require('fs')
@@ -21,11 +22,15 @@ const crypto  = require('crypto')
 const { createClient } = require('@supabase/supabase-js')
 
 // ── Args ──────────────────────────────────────────────────────────────────────
-const [,, csvFile, baseUrl = 'http://localhost:3000'] = process.argv
+const args    = process.argv.slice(2)
+const csvFile = args.find(a => !a.startsWith('--') && !a.startsWith('http'))
+const baseUrl = args.find(a => a.startsWith('http')) ?? 'http://localhost:3000'
+const campanaArg = args.indexOf('--campana')
+const campanaId  = campanaArg !== -1 ? args[campanaArg + 1] : null
 
 if (!csvFile) {
-  console.error('Uso: node --env-file=.env.local scripts/import-patients.js <archivo.csv> [base-url]')
-  console.error('Ejemplo: node --env-file=.env.local scripts/import-patients.js pacientes.csv https://ccss-utle.netlify.app')
+  console.error('Uso: node --env-file=.env.local scripts/import-patients.js <archivo.csv> [base-url] [--campana ID]')
+  console.error('Ejemplo: node --env-file=.env.local scripts/import-patients.js pacientes.csv https://ccss-utle-prod.netlify.app --campana 2026-05-01_HospMexico')
   process.exit(1)
 }
 
@@ -108,7 +113,9 @@ async function main() {
   const rows    = parseCSV(content)
 
   console.log(`\n📋 ${rows.length} filas encontradas en ${path.basename(csvFile)}`)
-  console.log(`🌐 Base URL: ${baseUrl}\n`)
+  console.log(`🌐 Base URL: ${baseUrl}`)
+  if (campanaId) console.log(`📣 Campaña: ${campanaId}`)
+  console.log()
 
   const resultados = []
   let insertados = 0, errores = 0, invalidos = 0
@@ -138,6 +145,7 @@ async function main() {
       token,
       link_expires_at:     linkExpiresAt,
       estado:              'PENDIENTE',
+      campana_id:          campanaId ?? row.campana_id ?? null,
     }
 
     const { error } = await supabase
@@ -160,7 +168,7 @@ async function main() {
     const outputFile = csvFile.replace(/\.csv$/i, '_urls.csv')
     const colsSalida = [
       'id_registro', 'nombre_paciente', 'correo', 'telefono',
-      'tipo_atencion', 'especialidad', 'centro_medico', 'url',
+      'tipo_atencion', 'especialidad', 'centro_medico', 'campana_id', 'url',
     ]
     const csvOut = [
       colsSalida.join(','),
