@@ -13,15 +13,27 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient()
 
-    // Resolver token → id_registro (nunca viaja en la URL)
+    // Resolver token → registro (nunca viaja en la URL)
     const { data: reg, error: regError } = await supabase
       .from('registros')
-      .select('id_registro')
+      .select('id_registro, verification_token, verification_token_expires_at')
       .eq('token', token)
       .single()
 
     if (regError || !reg) {
       return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
+    }
+
+    // Verificar que la identidad fue validada en servidor para cualquier respuesta
+    // que pase del paso 1 (excepto NO_AUTORIZO y NO_VERIFICADO que no requieren verificación)
+    const skipVerification = body.estado_final === 'NO_AUTORIZO' || body.estado_final === 'NO_VERIFICADO'
+    if (!skipVerification) {
+      if (!body.verification_token || body.verification_token !== reg.verification_token) {
+        return NextResponse.json({ error: 'Verificación de identidad requerida' }, { status: 403 })
+      }
+      if (!reg.verification_token_expires_at || new Date(reg.verification_token_expires_at) < new Date()) {
+        return NextResponse.json({ error: 'La sesión de verificación ha expirado' }, { status: 403 })
+      }
     }
 
     const id_registro = reg.id_registro

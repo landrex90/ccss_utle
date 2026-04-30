@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 interface Props {
   token: string
-  onSuccess: (intentos: number) => void
+  onSuccess: (intentos: number, verificationToken: string) => void
   onFailed: (intentos: number) => void
 }
 
@@ -34,8 +34,8 @@ export default function Step2Identity({ token, onSuccess, onFailed }: Props) {
       const newAttempt = attempt + 1
       setAttempt(newAttempt)
 
-      if (data.valid) {
-        onSuccess(newAttempt)
+      if (data.valid && data.verification_token) {
+        onSuccess(newAttempt, data.verification_token)
         return
       }
 

@@ -168,9 +168,9 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   }
 
   // ── Step 2 ───────────────────────────────────────────────────
-  function handleIdentitySuccess(intentos: number) {
+  function handleIdentitySuccess(intentos: number, verificationToken: string) {
     recordAnswer(2, 'Verificación', 'Identidad verificada')
-    setAnswers(a => ({ ...a, paso_2_verificacion: 'exitosa', paso_2_intentos: intentos }))
+    setAnswers(a => ({ ...a, paso_2_verificacion: 'exitosa', paso_2_intentos: intentos, verification_token: verificationToken }))
     advanceTo(3)
   }
 

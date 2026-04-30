@@ -21,6 +21,7 @@ export interface PatientPublicData {
 export interface FormAnswers {
   token: string
   canal: 'correo'
+  verification_token?: string
   paso_1_consentimiento?: 'si_autorizo' | 'no_autorizo'
   paso_2_verificacion?: 'exitosa' | 'fallida'
   paso_2_intentos?: number

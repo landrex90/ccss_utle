@@ -55,7 +55,28 @@ export async function POST(request: NextRequest) {
     })
 
     if (valid) {
-      return NextResponse.json({ valid: true })
+      const verificationToken = crypto.randomUUID()
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() // 2h
+
+      await supabase
+        .from('registros')
+        .update({ verification_token: verificationToken, verification_token_expires_at: expiresAt })
+        .eq('id_registro', id_registro)
+
+      // Revalidar: releer la BD y confirmar que el token guardado pertenece a este mismo registro
+      const { data: confirmado, error: confirmError } = await supabase
+        .from('registros')
+        .select('id_registro, verification_token')
+        .eq('token', token)
+        .eq('id_registro', id_registro)
+        .eq('verification_token', verificationToken)
+        .single()
+
+      if (confirmError || !confirmado) {
+        return NextResponse.json({ error: 'Error al confirmar verificación' }, { status: 500 })
+      }
+
+      return NextResponse.json({ valid: true, verification_token: confirmado.verification_token })
     }
 
     const remaining = MAX_ATTEMPTS - (attemptsSoFar + 1)

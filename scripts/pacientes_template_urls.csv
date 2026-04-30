@@ -1,0 +1,4 @@
+﻿id_registro,nombre_paciente,correo,telefono,tipo_atencion,especialidad,centro_medico,campana_id,url
+REG-2026-00001,María López Hernández,maria.lopez@gmail.com,88881111,cirugia,Ortopedia,Hospital San Juan de Dios,2026-04-29_Prueba,https://ccss-utle-preprod.netlify.app/utle?t=cdddaa23-ad25-4d03-b181-197ef274efd6
+REG-2026-00002,Carlos Rodríguez Mora,carlos.r@hotmail.com,77772222,consulta,Cardiología,Hospital México,2026-04-29_Prueba,https://ccss-utle-preprod.netlify.app/utle?t=718e61a6-f547-4744-bf36-799499561a46
+REG-2026-00003,Ana Jiménez Castro,ana.jimenez@gmail.com,,procedimiento,Gastroenterología,Hospital Calderón Guardia,2026-04-29_Prueba,https://ccss-utle-preprod.netlify.app/utle?t=b4f8a031-25f3-4647-8ed4-871b656d34c0
