@@ -70,6 +70,25 @@ async function submitResponse(answers: FormAnswers) {
   })
 }
 
+async function authorizeStep(
+  token: string,
+  verificationToken: string,
+  fromStep: number,
+  stepAnswers: Partial<FormAnswers>
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/authorize-step', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token, verification_token: verificationToken, from_step: fromStep, answers: stepAnswers }),
+    })
+    const data = await res.json()
+    return data.authorized ? { ok: true } : { ok: false, error: data.error }
+  } catch {
+    return { ok: false, error: 'Error de conexión. Por favor intente nuevamente.' }
+  }
+}
+
 export default function UTLEForm({ patient, token }: { patient: PatientPublicData; token: string }) {
   const [flowStep,         setFlowStep]         = useState<FlowStep>(1)
   const [stepHistory,      setStepHistory]       = useState<number[]>([1])
@@ -79,6 +98,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   const [confirmModal,     setConfirmModal]      = useState<ConfirmState | null>(null)
   const [closingData,      setClosingData]       = useState<{ title: string; message: string } | null>(null)
   const [submitting,       setSubmitting]        = useState(false)
+  const [gateError,        setGateError]         = useState<string | null>(null)
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isNumberStep = (s: FlowStep): s is 1|2|3|4|5|6 => typeof s === 'number'
@@ -179,7 +199,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   }
 
   // ── Step 3 ───────────────────────────────────────────────────
-  function handleCaseConfirm(correct: boolean) {
+  async function handleCaseConfirm(correct: boolean) {
     if (!correct) {
       autoAdvance('no', () => {
         recordAnswer(3, 'Sus datos', 'Información no correcta')
@@ -188,15 +208,23 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
       })
       return
     }
-    autoAdvance('si', () => {
-      recordAnswer(3, 'Sus datos', 'Información correcta')
-      setAnswers(a => ({ ...a, paso_3_info_correcta: 'si' }))
-      advanceTo(4)
-    })
+    setGateError(null)
+    setPendingSelection('si')
+    const gate = await authorizeStep(token, answers.verification_token ?? '', 3, { paso_3_info_correcta: 'si' })
+    setPendingSelection(null)
+    if (!gate.ok) { setGateError(gate.error ?? 'Error al avanzar'); return }
+    recordAnswer(3, 'Sus datos', 'Información correcta')
+    setAnswers(a => ({ ...a, paso_3_info_correcta: 'si' }))
+    advanceTo(4)
   }
 
   // ── Step 4 ───────────────────────────────────────────────────
-  function handleContinue() {
+  async function handleContinue() {
+    setGateError(null)
+    setPendingSelection('si')
+    const gate = await authorizeStep(token, answers.verification_token ?? '', 4, { paso_4_desea_continuar: 'si' })
+    setPendingSelection(null)
+    if (!gate.ok) { setGateError(gate.error ?? 'Error al avanzar'); return }
     recordAnswer(4, 'Decisión', 'Desea continuar')
     setAnswers(a => ({ ...a, paso_4_desea_continuar: 'si' }))
     advanceTo(5)
@@ -224,7 +252,13 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   }
 
   // ── Step 5 ───────────────────────────────────────────────────
-  function handleConditions(flexibilidad: 'si'|'no', condiciones: 'si'|'no', motivoNoAsistir: string|null) {
+  async function handleConditions(flexibilidad: 'si'|'no', condiciones: 'si'|'no', motivoNoAsistir: string|null) {
+    setGateError(null)
+    const gate = await authorizeStep(token, answers.verification_token ?? '', 5, {
+      paso_5a_flexibilidad_centro: flexibilidad,
+      paso_5b_condiciones_asistir: condiciones,
+    })
+    if (!gate.ok) { setGateError(gate.error ?? 'Error al avanzar'); return }
     const answerText = condiciones === 'si'
       ? `Puede asistir · Centro alternativo: ${flexibilidad === 'si' ? 'Sí' : 'No'}`
       : `No puede asistir · Centro alternativo: ${flexibilidad === 'si' ? 'Sí' : 'No'}`
@@ -239,7 +273,12 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   }
 
   // ── Step 6 ───────────────────────────────────────────────────
-  function handleContact(medio: FormAnswers['paso_6_medio_contacto']) {
+  async function handleContact(medio: FormAnswers['paso_6_medio_contacto']) {
+    setGateError(null)
+    setPendingSelection(medio ?? null)
+    const gate = await authorizeStep(token, answers.verification_token ?? '', 6, { paso_6_medio_contacto: medio })
+    setPendingSelection(null)
+    if (!gate.ok) { setGateError(gate.error ?? 'Error al avanzar'); return }
     const labels: Record<string, string> = {
       llamada: 'Llamada telefónica', whatsapp: 'WhatsApp',
       correo: 'Correo electrónico', sms: 'SMS', cualquiera: 'Cualquiera',
@@ -361,6 +400,12 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
           onDone={handleContact}
           pendingSelection={pendingSelection}
         />
+      )}
+
+      {gateError && (
+        <div role="alert" className="mt-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
+          <p className="text-sm text-red-700 dark:text-red-300">{gateError}</p>
+        </div>
       )}
 
       <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-8">
