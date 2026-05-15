@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <footer className="text-center py-4">
             <p className="text-xs text-gray-400 dark:text-gray-600">
               Plataforma desarrollada por{' '}
-              <span className="font-medium text-gray-500 dark:text-gray-500">COCO Tech AI CR</span>
+              <span className="font-medium text-gray-500 dark:text-gray-500">COCO Tech AI</span>
             </p>
           </footer>
         </A11yProvider>
