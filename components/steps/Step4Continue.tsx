@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import StepOption from '@/components/StepOption'
 import { MOTIVOS_RETIRO } from '@/lib/types'
 
@@ -22,10 +22,13 @@ export default function Step4Continue({
   const [renunciaFlow, setRenunciaFlow] = useState(false)
   const disabled = !!pendingSelection || confirmModalOpen
 
-  if (!confirmModalOpen && renunciaFlow && !showMotivos) {
-    setShowMotivos(true)
-    setRenunciaFlow(false)
-  }
+  // Transition to motivos sub-step once confirm modal closes
+  useEffect(() => {
+    if (!confirmModalOpen && renunciaFlow && !showMotivos) {
+      setShowMotivos(true)
+      setRenunciaFlow(false)
+    }
+  }, [confirmModalOpen, renunciaFlow, showMotivos])
 
   if (showMotivos) {
     return (

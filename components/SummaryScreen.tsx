@@ -1,4 +1,4 @@
-import { FormAnswers, PatientPublicData } from '@/lib/types'
+import { FormAnswers, PatientPublicData, MOTIVOS_RETIRO, MOTIVOS_NO_ASISTIR } from '@/lib/types'
 
 const CONTACT_LABELS: Record<string, string> = {
   llamada:    'Llamada telefónica',
@@ -6,11 +6,6 @@ const CONTACT_LABELS: Record<string, string> = {
   correo:     'Correo electrónico',
   sms:        'Mensaje de texto (SMS)',
   cualquiera: 'Cualquiera de las anteriores',
-}
-const TIPO_LABELS: Record<string, string> = {
-  consulta:      'Consulta externa',
-  cirugia:       'Cirugía',
-  procedimiento: 'Procedimiento',
 }
 
 interface Row { label: string; value: string }
@@ -34,21 +29,32 @@ interface Props {
 }
 
 export default function SummaryScreen({ answers, patient, onConfirm, onBack, loading }: Props) {
-  const tipoLabel = TIPO_LABELS[patient.tipo_atencion] ?? patient.tipo_atencion
+  const tipo = patient.tipo_atencion
+
+  const motivoNoAsistirLabel = MOTIVOS_NO_ASISTIR.find(
+    m => m.value === answers.paso_5b_motivo_no_asistir
+  )?.label ?? answers.paso_5b_motivo_no_asistir ?? ''
 
   const rows: Row[] = [
-    { label: 'Consentimiento',    value: answers.paso_1_consentimiento === 'si_autorizo' ? 'Autorizado ✓' : 'No autorizado' },
-    { label: 'Verificación',      value: `Exitosa (${answers.paso_2_intentos ?? 1} intento${(answers.paso_2_intentos ?? 1) !== 1 ? 's' : ''})` },
-    { label: 'Información',       value: answers.paso_3_info_correcta === 'si' ? 'Correcta ✓' : 'No correcta' },
-    { label: 'Tipo de atención',  value: tipoLabel },
-    ...(patient.nombre_servicio ? [{ label: patient.tipo_atencion === 'cirugia' ? 'Cirugía' : 'Procedimiento', value: patient.nombre_servicio }] : []),
-    ...(patient.lateralidad ? [{ label: 'Lateralidad', value: patient.lateralidad }] : []),
-    { label: 'Centro médico',     value: patient.centro_medico },
-    { label: 'Decisión',          value: 'Desea continuar ✓' },
+    { label: 'Consentimiento',   value: 'Autorizado ✓' },
+    { label: 'Verificación',     value: `Exitosa (${answers.paso_2_intentos ?? 1} intento${(answers.paso_2_intentos ?? 1) !== 1 ? 's' : ''})` },
+    { label: 'Información',      value: 'Correcta ✓' },
+    ...(patient.nombre_servicio  ? [{ label: 'Servicio',         value: patient.nombre_servicio }]  : []),
+    ...(patient.especialidad     ? [{ label: 'Especialidad',     value: patient.especialidad }]     : []),
+    { label: 'Centro médico',      value: patient.centro_medico },
+    // Cirugía
+    ...(tipo === 'cirugia' && patient.procedimiento ? [{ label: 'Procedimiento', value: patient.procedimiento }] : []),
+    ...(tipo === 'cirugia' && patient.lateralidad   ? [{ label: 'Lateralidad',   value: patient.lateralidad }]   : []),
+    // Consulta / Procedimiento
+    ...(tipo !== 'cirugia' && patient.tipo_consulta ? [{ label: 'Tipo de consulta', value: patient.tipo_consulta }] : []),
+    ...(tipo !== 'cirugia' && patient.lateralidad   ? [{ label: 'Lateralidad',      value: patient.lateralidad }]   : []),
+    ...(tipo !== 'cirugia' && patient.fecha_cita    ? [{ label: 'Fecha de cita',    value: patient.fecha_cita }]    : []),
+    ...(tipo !== 'cirugia' && patient.hora_cita     ? [{ label: 'Hora de cita',     value: patient.hora_cita }]     : []),
+    { label: 'Decisión',           value: 'Desea continuar ✓' },
     { label: 'Centro alternativo', value: answers.paso_5a_flexibilidad_centro === 'si' ? 'Sí, acepta' : 'No acepta' },
     { label: 'Condiciones para asistir', value: answers.paso_5b_condiciones_asistir === 'si'
         ? 'Puede asistir ✓'
-        : `No puede asistir — ${answers.paso_5b_motivo_no_asistir ?? ''}` },
+        : `No puede asistir — ${motivoNoAsistirLabel}` },
     { label: 'Contacto preferido', value: CONTACT_LABELS[answers.paso_6_medio_contacto ?? ''] ?? '' },
   ]
 

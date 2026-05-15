@@ -73,16 +73,23 @@ export async function POST(request: NextRequest) {
     // Reenviar webhook a COCO si está configurado
     const webhookUrl = process.env.COCO_WEBHOOK_URL
     if (webhookUrl) {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(process.env.COCO_WEBHOOK_SECRET
-            ? { Authorization: `Bearer ${process.env.COCO_WEBHOOK_SECRET}` }
-            : {}),
-        },
-        body: JSON.stringify({ ...body, timestamp: new Date().toISOString() }),
-      }).catch((err) => console.error('Webhook forward error:', err))
+      try {
+        const whRes = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(process.env.COCO_WEBHOOK_SECRET
+              ? { Authorization: `Bearer ${process.env.COCO_WEBHOOK_SECRET}` }
+              : {}),
+          },
+          body: JSON.stringify({ ...body, timestamp: new Date().toISOString() }),
+        })
+        if (!whRes.ok) {
+          console.error(`Webhook forward failed: ${whRes.status} ${await whRes.text()}`)
+        }
+      } catch (err) {
+        console.error('Webhook forward error:', err)
+      }
     }
 
     return NextResponse.json({ ok: true })

@@ -1,0 +1,4 @@
+id_registro,nombre_paciente,numero_asegurado,correo,telefono,centro_medico,tipo_atencion,ultimos_4_asegurado,especialidad,nombre_servicio,lateralidad
+TEST-AZ-001,Andrés Zapata,1-2345-6789,a.zapata@cocotech.ai,+573142149000,Hospital México,consulta,1234,Medicina General,,
+TEST-AZ-002,Andrés Zapata,1-2345-6789,a.zapata@cocotech.ai,+573142149000,Hospital San Juan de Dios,cirugia,1234,Cirugía General,Colecistectomía Laparoscópica,
+TEST-AZ-003,Andrés Zapata,1-2345-6789,a.zapata@cocotech.ai,+573142149000,Clínica Marcial Fallas,procedimiento,1234,Cardiología,Ecocardiograma,

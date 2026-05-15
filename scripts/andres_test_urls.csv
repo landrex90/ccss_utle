@@ -1,0 +1,4 @@
+﻿id_registro,nombre_paciente,correo,telefono,tipo_atencion,especialidad,centro_medico,campana_id,url
+TEST-AZ-001,Andrés Zapata,a.zapata@cocotech.ai,+573142149000,consulta,Medicina General,Hospital México,Test_Andres_2026-05-14,https://ccss-utle-preprod.netlify.app/utle?t=aef9db32-05a2-415a-a012-eb86f4ebd365
+TEST-AZ-002,Andrés Zapata,a.zapata@cocotech.ai,+573142149000,cirugia,Cirugía General,Hospital San Juan de Dios,Test_Andres_2026-05-14,https://ccss-utle-preprod.netlify.app/utle?t=a49bc68e-0452-469c-a4ba-46be4679001a
+TEST-AZ-003,Andrés Zapata,a.zapata@cocotech.ai,+573142149000,procedimiento,Cardiología,Clínica Marcial Fallas,Test_Andres_2026-05-14,https://ccss-utle-preprod.netlify.app/utle?t=a581e735-3c0e-4df6-958a-7c7e789223f3

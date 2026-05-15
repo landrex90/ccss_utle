@@ -82,15 +82,20 @@ async function authorizeStep(
   stepAnswers: Partial<FormAnswers>
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    const controller = new AbortController()
+    const timeout    = setTimeout(() => controller.abort(), 10_000)
     const res = await fetch('/api/authorize-step', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ token, verification_token: verificationToken, from_step: fromStep, answers: stepAnswers }),
+      signal:  controller.signal,
     })
+    clearTimeout(timeout)
     const data = await res.json()
     return data.authorized ? { ok: true } : { ok: false, error: data.error }
-  } catch {
-    return { ok: false, error: 'Error de conexión. Por favor intente nuevamente.' }
+  } catch (err) {
+    const isTimeout = err instanceof Error && err.name === 'AbortError'
+    return { ok: false, error: isTimeout ? 'La solicitud tardó demasiado. Por favor intente nuevamente.' : 'Error de conexión. Por favor intente nuevamente.' }
   }
 }
 

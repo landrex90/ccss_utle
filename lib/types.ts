@@ -31,7 +31,7 @@ export interface FormAnswers {
   paso_2_verificacion?: 'exitosa' | 'fallida'
   paso_2_intentos?: number
   paso_3_info_correcta?: 'si' | 'no'
-  paso_4_desea_continuar?: 'si' | 'no_ya_realizada' | 'no_ya_programada' | 'no_ya_no_deseo' | 'no_asegurado'
+  paso_4_desea_continuar?: 'si' | 'no_ya_no_deseo' | 'no_asegurado'
   motivo_retiro?: string | null
   paso_5a_flexibilidad_centro?: 'si' | 'no'
   paso_5b_condiciones_asistir?: 'si' | 'no'
