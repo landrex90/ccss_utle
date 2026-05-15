@@ -7,6 +7,7 @@ export type EstadoFinal =
   | 'DEPURADO_YA_ATENDIDO'
   | 'DEPURADO_YA_PROGRAMADO'
   | 'DEPURADO_RENUNCIA'
+  | 'NO_ASEGURADO'
   | 'ACTIVO'
 
 export interface PatientPublicData {
@@ -16,6 +17,10 @@ export interface PatientPublicData {
   especialidad: string | null
   centro_medico: string
   lateralidad: string | null
+  procedimiento: string | null
+  tipo_consulta: string | null
+  fecha_cita: string | null
+  hora_cita: string | null
 }
 
 export interface FormAnswers {
@@ -26,7 +31,7 @@ export interface FormAnswers {
   paso_2_verificacion?: 'exitosa' | 'fallida'
   paso_2_intentos?: number
   paso_3_info_correcta?: 'si' | 'no'
-  paso_4_desea_continuar?: 'si' | 'no_ya_realizada' | 'no_ya_programada' | 'no_ya_no_deseo'
+  paso_4_desea_continuar?: 'si' | 'no_ya_realizada' | 'no_ya_programada' | 'no_ya_no_deseo' | 'no_asegurado'
   motivo_retiro?: string | null
   paso_5a_flexibilidad_centro?: 'si' | 'no'
   paso_5b_condiciones_asistir?: 'si' | 'no'
@@ -37,37 +42,24 @@ export interface FormAnswers {
   paso_abandono?: number | null
 }
 
-export const MOTIVOS_RETIRO: Record<TipoAtencion, { value: string; label: string }[]> = {
-  consulta: [
-    { value: 'ya_no_deseo_la_cita', label: 'Ya no deseo la cita' },
-    { value: 'acudi_otro_centro', label: 'Acudí a cita en otro centro médico' },
-    { value: 'ya_no_necesito_cita', label: 'Ya no necesito cita' },
-    { value: 'no_asegurado', label: 'No asegurado' },
-    { value: 'fallecimiento', label: 'Fallecimiento' },
-  ],
-  cirugia: [
-    { value: 'ya_no_deseo_operarme', label: 'Ya no deseo operarme' },
-    { value: 'operado_otro_centro', label: 'Operado en otro centro médico' },
-    { value: 'ya_no_necesito_cirugia', label: 'Ya no necesito la cirugía' },
-    { value: 'contraindicacion_medica', label: 'Contraindicación médica' },
-    { value: 'no_asegurado', label: 'No asegurado' },
-    { value: 'fallecimiento', label: 'Fallecimiento' },
-  ],
-  procedimiento: [
-    { value: 'ya_no_deseo_procedimiento', label: 'Ya no deseo el procedimiento' },
-    { value: 'realizado_otro_centro', label: 'Me lo realicé en otro centro médico' },
-    { value: 'ya_no_necesito_procedimiento', label: 'Ya no necesito el procedimiento' },
-    { value: 'contraindicacion_medica', label: 'Contraindicación médica' },
-    { value: 'no_asegurado', label: 'No asegurado' },
-    { value: 'fallecimiento', label: 'Fallecimiento' },
-  ],
-}
+// 6 motivos uniformes para los 3 tipos de atención
+export const MOTIVOS_RETIRO: { value: string; label: string }[] = [
+  { value: 'ya_no_deseo_la_atencion', label: 'Ya no deseo esta atención' },
+  { value: 'acudi_ccss',              label: 'Acudí a otro centro de la CCSS' },
+  { value: 'acudi_privado',           label: 'Acudí a un centro médico privado' },
+  { value: 'ya_no_necesito',          label: 'Ya no necesito esta atención' },
+  { value: 'contraindicacion_medica', label: 'Contraindicación médica' },
+  { value: 'fallecimiento',           label: 'Fallecimiento' },
+]
 
 export const MOTIVOS_NO_ASISTIR = [
-  { value: 'fuera_del_pais', label: 'Fuera del país o lugar de residencia' },
-  { value: 'enfermo', label: 'Me encuentro enfermo' },
-  { value: 'recuperandome_cirugia', label: 'Me estoy recuperando de una cirugía' },
-  { value: 'sin_medios_traslado', label: 'No tengo los medios para poder trasladarme' },
-  { value: 'sin_acompanante', label: 'No tengo acompañante' },
-  { value: 'otros', label: 'Otros' },
+  { value: 'fuera_del_pais',          label: 'Fuera del país o lugar de residencia' },
+  { value: 'enfermo',                 label: 'Me encuentro enfermo/a' },
+  { value: 'recuperandome',           label: 'Me estoy recuperando de una cirugía o procedimiento' },
+  { value: 'sin_medios_traslado',     label: 'No tengo los medios para trasladarme' },
+  { value: 'sin_acompanante',         label: 'No tengo acompañante' },
+  { value: 'conflicto_laboral',       label: 'Conflicto con horario laboral' },
+  { value: 'cuido_dependiente',       label: 'Debo cuidar a una persona dependiente' },
+  { value: 'contraindicacion_medica', label: 'Contraindicación médica temporal' },
+  { value: 'otros',                   label: 'Otros' },
 ]

@@ -33,8 +33,8 @@ export default function Step5Conditions({ onDone, pendingSelection }: Props) {
       <div className="space-y-6 animate-fade-in">
         <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
           <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed">
-            En caso de que se diera la oportunidad y con el fin de adelantar su atención,
-            ¿estaría usted dispuesto(a) a ser atendido(a) en <strong>otro centro médico de la CCSS</strong>?
+            Con el fin de agilizar su atención, ¿estaría usted dispuesto/a a ser
+            atendido/a en <strong>otro centro médico de la CCSS</strong> diferente al asignado?
           </p>
         </div>
         <div className="space-y-3">

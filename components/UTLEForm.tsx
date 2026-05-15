@@ -15,8 +15,9 @@ import Step5Conditions from './steps/Step5Conditions'
 import Step6Contact    from './steps/Step6Contact'
 
 const AUTOADVANCE_MS = 450
+const CONTACT_EMAIL  = 'gm_utle_gelisespera@ccss.sa.cr'
 
-type FlowStep = 1 | 2 | 3 | 4 | 5 | 6 | 'summary' | 'closing'
+type FlowStep = 1 | 2 | 3 | 4 | 5 | 6 | 'transition' | 'summary' | 'closing'
 
 interface ConfirmState {
   title:     string
@@ -27,15 +28,15 @@ interface ConfirmState {
 const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
   NO_AUTORIZO: {
     title:   'Entendemos su decisión',
-    message: 'Si desea información o actualizar sus datos, puede comunicarse al 905-MISALUD.\nMuchas gracias.',
+    message: `Si en el futuro desea actualizar sus datos o tiene alguna consulta, puede comunicarse a:\n${CONTACT_EMAIL}\n\nMuchas gracias.`,
   },
   NO_VERIFICADO: {
     title:   'No pudimos verificar su identidad',
-    message: 'Lamentablemente no pudimos verificar su identificación.\nSi usted se encuentra en lista de espera, por favor comuníquese al 905-MISALUD.',
+    message: `Si usted se encuentra en lista de espera y desea continuar el proceso, comuníquese a:\n${CONTACT_EMAIL}`,
   },
   INFO_INCORRECTA: {
     title:   'Información no coincide',
-    message: 'Gracias por la información. Si considera que esto es un error, comuníquese al 905-MISALUD.\nMuchas gracias por su tiempo.',
+    message: `Gracias por indicarlo. Si considera que esto es un error, comuníquese a:\n${CONTACT_EMAIL}\n\nMuchas gracias por su tiempo.`,
   },
   DEPURADO_YA_ATENDIDO: {
     title:   'Muchas gracias',
@@ -47,11 +48,15 @@ const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
   },
   DEPURADO_RENUNCIA: {
     title:   'Entendemos su decisión',
-    message: 'Registraremos que no desea continuar con esta atención y su caso será retirado de la lista de espera.\nSi en el futuro desea retomar el proceso, comuníquese al 905-MISALUD.\nMuchas gracias.',
+    message: `Registraremos que ya no desea continuar con esta atención y su caso será retirado de la lista de espera.\n\nSi en el futuro desea retomar el proceso, comuníquese a:\n${CONTACT_EMAIL}\n\nMuchas gracias.`,
+  },
+  NO_ASEGURADO: {
+    title:   'Hemos registrado su respuesta',
+    message: `Hemos tomado nota de que usted no cuenta con aseguramiento activo en la CCSS.\n\nPara regularizar su situación o si considera que esto es un error, comuníquese a:\n${CONTACT_EMAIL}`,
   },
   ACTIVO: {
     title:   'Muchas gracias por su información',
-    message: 'Estos datos nos ayudan a mantener actualizado su registro.\nPor favor esté pendiente de llamadas, mensajes o correos de la CCSS.',
+    message: `Sus datos han sido actualizados correctamente. Por favor esté pendiente de llamadas, mensajes o correos de la CCSS.\n\nSi tiene alguna consulta:\n${CONTACT_EMAIL}`,
   },
 }
 
@@ -90,33 +95,30 @@ async function authorizeStep(
 }
 
 export default function UTLEForm({ patient, token }: { patient: PatientPublicData; token: string }) {
-  const [flowStep,         setFlowStep]         = useState<FlowStep>(1)
-  const [stepHistory,      setStepHistory]       = useState<number[]>([1])
-  const [answers,          setAnswers]           = useState<FormAnswers>({ token, canal: 'correo' })
-  const [completedAnswers, setCompletedAnswers]  = useState<AnswerEntry[]>([])
-  const [pendingSelection, setPendingSelection]  = useState<string | null>(null)
-  const [confirmModal,     setConfirmModal]      = useState<ConfirmState | null>(null)
-  const [closingData,      setClosingData]       = useState<{ title: string; message: string } | null>(null)
-  const [submitting,       setSubmitting]        = useState(false)
-  const [gateError,        setGateError]         = useState<string | null>(null)
+  const [flowStep,         setFlowStep]        = useState<FlowStep>(1)
+  const [stepHistory,      setStepHistory]      = useState<number[]>([1])
+  const [answers,          setAnswers]          = useState<FormAnswers>({ token, canal: 'correo' })
+  const [completedAnswers, setCompletedAnswers] = useState<AnswerEntry[]>([])
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null)
+  const [confirmModal,     setConfirmModal]     = useState<ConfirmState | null>(null)
+  const [closingData,      setClosingData]      = useState<{ title: string; message: string } | null>(null)
+  const [submitting,       setSubmitting]       = useState(false)
+  const [gateError,        setGateError]        = useState<string | null>(null)
   const autoAdvanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isNumberStep = (s: FlowStep): s is 1|2|3|4|5|6 => typeof s === 'number'
 
-  // ── Navigation helpers ───────────────────────────────────────
+  // ── Navigation ───────────────────────────────────────────────
   function advanceTo(next: FlowStep) {
-    if (isNumberStep(next)) {
-      setStepHistory(h => [...h, next])
-    }
+    if (isNumberStep(next)) setStepHistory(h => [...h, next])
     setFlowStep(next)
   }
 
   function goBack() {
     if (stepHistory.length < 2) return
-    const newHistory = stepHistory.slice(0, -1)
-    const prev = newHistory[newHistory.length - 1]
-    // Clear answers for the step we're leaving and beyond
-    const leavingStep = stepHistory[stepHistory.length - 1]
+    const newHistory    = stepHistory.slice(0, -1)
+    const prev          = newHistory[newHistory.length - 1]
+    const leavingStep   = stepHistory[stepHistory.length - 1]
     setAnswers(a => {
       const updated = { ...a }
       for (let s = leavingStep; s <= 6; s++) {
@@ -131,7 +133,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
 
   const canGoBack = isNumberStep(flowStep) && flowStep >= 4 && stepHistory.length > 1
 
-  // ── Auto-advance wrapper ─────────────────────────────────────
+  // ── Auto-advance ─────────────────────────────────────────────
   function autoAdvance(value: string, callback: () => void) {
     if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current)
     setPendingSelection(value)
@@ -141,12 +143,11 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     }, AUTOADVANCE_MS)
   }
 
-  // ── Completed answers tracker ────────────────────────────────
   function recordAnswer(step: number, stepName: string, answer: string) {
     setCompletedAnswers(ca => [...ca.filter(e => e.step !== step), { step, stepName, answer }])
   }
 
-  // ── Close flow with state ────────────────────────────────────
+  // ── Close flow ───────────────────────────────────────────────
   const closeWithState = useCallback(async (
     estado: EstadoFinal,
     extra:  Partial<FormAnswers> = {},
@@ -227,20 +228,18 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     if (!gate.ok) { setGateError(gate.error ?? 'Error al avanzar'); return }
     recordAnswer(4, 'Decisión', 'Desea continuar')
     setAnswers(a => ({ ...a, paso_4_desea_continuar: 'si' }))
-    advanceTo(5)
+    advanceTo('transition')
   }
 
-  function handleDepurado(reason: 'ya_realizada' | 'ya_programada') {
-    const estado: EstadoFinal = reason === 'ya_realizada' ? 'DEPURADO_YA_ATENDIDO' : 'DEPURADO_YA_PROGRAMADO'
-    const campo = reason === 'ya_realizada' ? 'no_ya_realizada' : 'no_ya_programada'
-    closeWithState(estado, { paso_4_desea_continuar: campo as FormAnswers['paso_4_desea_continuar'] }, 4)
+  function handleNoAsegurado() {
+    closeWithState('NO_ASEGURADO', { paso_4_desea_continuar: 'no_asegurado' }, 4)
   }
 
   function handleRenunciaIntent() {
     setConfirmModal({
       title:   '¿Está seguro de que desea retirarse?',
-      message: 'Esta acción retirará su caso de la lista de espera. Podrá volver a solicitarlo llamando al 905-MISALUD.',
-      onConfirm: () => setConfirmModal(null), // Step4 will handle motivo sub-step
+      message: `Esta acción retirará su caso de la lista de espera. Si en el futuro desea retomarlo, comuníquese a ${CONTACT_EMAIL}.`,
+      onConfirm: () => setConfirmModal(null),
     })
   }
 
@@ -265,9 +264,9 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     recordAnswer(5, 'Disponibilidad', answerText)
     setAnswers(a => ({
       ...a,
-      paso_5a_flexibilidad_centro:  flexibilidad,
-      paso_5b_condiciones_asistir:  condiciones,
-      paso_5b_motivo_no_asistir:    motivoNoAsistir,
+      paso_5a_flexibilidad_centro: flexibilidad,
+      paso_5b_condiciones_asistir: condiciones,
+      paso_5b_motivo_no_asistir:   motivoNoAsistir,
     }))
     advanceTo(6)
   }
@@ -298,12 +297,12 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     setFlowStep('closing')
   }
 
-  // ── Render: closing ─────────────────────────────────────────
+  // ── Render: closing ──────────────────────────────────────────
   if (flowStep === 'closing' && closingData) {
-    return <ClosingMessage title={closingData.title} message={closingData.message} highlight="905-MISALUD" />
+    return <ClosingMessage title={closingData.title} message={closingData.message} />
   }
 
-  // ── Render: summary ─────────────────────────────────────────
+  // ── Render: summary ──────────────────────────────────────────
   if (flowStep === 'summary') {
     return (
       <div className="mt-8">
@@ -327,13 +326,42 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
           loading={submitting}
         />
         <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">
-          ¿Necesita ayuda? <span className="font-medium text-ccss-primary dark:text-ccss-accent">905-MISALUD</span>
+          ¿Necesita ayuda?{' '}
+          <span className="font-medium text-ccss-primary dark:text-ccss-accent">{CONTACT_EMAIL}</span>
         </p>
       </div>
     )
   }
 
-  // ── Render: steps 1–6 ───────────────────────────────────────
+  // ── Render: transition (entre paso 4 y 5) ───────────────────
+  if (flowStep === 'transition') {
+    return (
+      <div className="mt-8">
+        <ProgressBar currentStep={4} totalSteps={6} canGoBack={false} onBack={() => {}} />
+        <AnswersSummary entries={completedAnswers.filter(e => e.step <= 4)} />
+        <div className="space-y-6 animate-fade-in">
+          <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
+            <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed">
+              Nos alegra saber que desea continuar con su atención.
+              A continuación le haremos unas preguntas sobre su disponibilidad para recibir la cita o procedimiento.
+            </p>
+          </div>
+          <button
+            onClick={() => advanceTo(5)}
+            className="btn-primary w-full"
+          >
+            Continuar
+          </button>
+        </div>
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-8">
+          ¿Necesita ayuda?{' '}
+          <span className="font-medium text-ccss-primary dark:text-ccss-accent">{CONTACT_EMAIL}</span>
+        </p>
+      </div>
+    )
+  }
+
+  // ── Render: steps 1–6 ────────────────────────────────────────
   const numStep = flowStep as 1|2|3|4|5|6
   const answersForSummary = completedAnswers.filter(e => e.step < numStep)
 
@@ -380,9 +408,8 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
       )}
       {flowStep === 4 && (
         <Step4Continue
-          tipoAtencion={patient.tipo_atencion as TipoAtencion}
           onContinue={handleContinue}
-          onDepurado={handleDepurado}
+          onNoAsegurado={handleNoAsegurado}
           onRenunciaIntent={handleRenunciaIntent}
           onRenunciaConfirmed={handleRenunciaConfirmed}
           pendingSelection={pendingSelection}
@@ -409,7 +436,8 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
       )}
 
       <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-8">
-        ¿Necesita ayuda? <span className="font-medium text-ccss-primary dark:text-ccss-accent">905-MISALUD</span>
+        ¿Necesita ayuda?{' '}
+        <span className="font-medium text-ccss-primary dark:text-ccss-accent">{CONTACT_EMAIL}</span>
       </p>
     </div>
   )

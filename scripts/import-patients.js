@@ -10,7 +10,7 @@
  *   tipo_atencion (consulta|cirugia|procedimiento), ultimos_4_asegurado
  *
  * Columnas opcionales:
- *   telefono, especialidad, nombre_servicio, lateralidad
+ *   telefono, especialidad, nombre_servicio, lateralidad, procedimiento, tipo_consulta, fecha_cita, hora_cita
  *
  * El script genera un archivo <archivo>_urls.csv con las URLs personalizadas.
  * Si se indica --campana, todos los registros quedan marcados con ese ID.
@@ -139,8 +139,12 @@ async function main() {
       especialidad:        row.especialidad    || null,
       centro_medico:       row.centro_medico,
       tipo_atencion:       row.tipo_atencion,
-      nombre_servicio:     row.nombre_servicio || null,
-      lateralidad:         row.lateralidad     || null,
+      nombre_servicio:     row.nombre_servicio  || null,
+      lateralidad:         row.lateralidad      || null,
+      procedimiento:       row.procedimiento    || null,
+      tipo_consulta:       row.tipo_consulta    || null,
+      fecha_cita:          row.fecha_cita       || null,
+      hora_cita:           row.hora_cita        || null,
       ultimos_4_asegurado: row.ultimos_4_asegurado,
       token,
       link_expires_at:     linkExpiresAt,

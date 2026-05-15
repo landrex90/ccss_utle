@@ -9,6 +9,8 @@ interface Props {
   searchParams: { t?: string }
 }
 
+const CONTACT_EMAIL = 'gm_utle_gelisespera@ccss.sa.cr'
+
 function ErrorPage({ message }: { message: string }) {
   return (
     <main className="min-h-screen flex items-center justify-center px-4">
@@ -16,7 +18,7 @@ function ErrorPage({ message }: { message: string }) {
         <CCSSHeader />
         <div className="mt-8 card p-8">
           <p className="text-gray-700 dark:text-gray-200 text-lg leading-relaxed">{message}</p>
-          <p className="mt-4 text-ccss-primary dark:text-ccss-accent font-semibold text-lg">905-MISALUD</p>
+          <p className="mt-4 text-ccss-primary dark:text-ccss-accent font-medium text-sm">{CONTACT_EMAIL}</p>
         </div>
       </div>
     </main>
@@ -50,7 +52,7 @@ export default async function UTLEPage({ searchParams }: Props) {
   const { t } = searchParams
 
   if (!t) {
-    return <ErrorPage message="El enlace no es válido. Por favor verifique que el enlace sea el correcto o comuníquese al 905-MISALUD." />
+    return <ErrorPage message="El enlace no es válido. Por favor verifique que el enlace sea el correcto o comuníquese a:" />
   }
 
   const supabase = createClient()
@@ -58,30 +60,34 @@ export default async function UTLEPage({ searchParams }: Props) {
   const { data: registro, error } = await supabase
     .from('registros')
     .select(
-      'nombre_paciente, tipo_atencion, nombre_servicio, especialidad, centro_medico, lateralidad, link_expires_at, estado'
+      'nombre_paciente, tipo_atencion, nombre_servicio, especialidad, centro_medico, lateralidad, procedimiento, tipo_consulta, fecha_cita, hora_cita, link_expires_at, estado'
     )
     .eq('token', t)
     .single()
 
   if (error || !registro) {
-    return <ErrorPage message="No encontramos su registro en el sistema. Por favor comuníquese al 905-MISALUD." />
+    return <ErrorPage message="No encontramos su registro en el sistema. Para asistencia comuníquese a:" />
   }
 
   if (new Date(registro.link_expires_at) < new Date()) {
-    return <ErrorPage message="Este enlace ha expirado. Por favor comuníquese al 905-MISALUD para solicitar uno nuevo." />
+    return <ErrorPage message="Este enlace ha expirado. Para solicitar uno nuevo, comuníquese a:" />
   }
 
   if (registro.estado !== 'PENDIENTE') {
-    return <ErrorPage message="Ya hemos recibido su respuesta. Muchas gracias por su participación. Si tiene consultas, comuníquese al 905-MISALUD." />
+    return <ErrorPage message="Ya hemos recibido su respuesta. Muchas gracias por su participación. Si tiene consultas, comuníquese a:" />
   }
 
   const patient: PatientPublicData = {
     nombre_paciente: registro.nombre_paciente,
-    tipo_atencion: registro.tipo_atencion,
+    tipo_atencion:   registro.tipo_atencion,
     nombre_servicio: registro.nombre_servicio ?? null,
-    especialidad: registro.especialidad ?? null,
-    centro_medico: registro.centro_medico,
-    lateralidad: registro.lateralidad ?? null,
+    especialidad:    registro.especialidad    ?? null,
+    centro_medico:   registro.centro_medico,
+    lateralidad:     registro.lateralidad     ?? null,
+    procedimiento:   registro.procedimiento   ?? null,
+    tipo_consulta:   registro.tipo_consulta   ?? null,
+    fecha_cita:      registro.fecha_cita      ?? null,
+    hora_cita:       registro.hora_cita       ?? null,
   }
 
   return (
