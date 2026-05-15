@@ -2,8 +2,8 @@ import StepOption from '@/components/StepOption'
 import { PatientPublicData } from '@/lib/types'
 
 interface Props {
-  patient:          PatientPublicData
-  onAnswer:         (correct: boolean) => void
+  patient:           PatientPublicData
+  onAnswer:          (correct: boolean) => void
   pendingSelection?: string | null
 }
 
@@ -11,15 +11,17 @@ function CaseDetail({ label, value }: { label: string; value: string | null }) {
   if (!value) return null
   return (
     <div className="flex flex-col sm:flex-row sm:gap-2">
-      <span className="text-gray-500 dark:text-gray-400 text-sm sm:w-36 shrink-0">{label}:</span>
+      <span className="text-gray-500 dark:text-gray-400 text-sm sm:w-40 shrink-0">{label}:</span>
       <span className="text-gray-800 dark:text-gray-100 font-medium text-sm">{value}</span>
     </div>
   )
 }
 
 export default function Step3Case({ patient, onAnswer, pendingSelection }: Props) {
-  const disabled = !!pendingSelection
-  const tipoLabel = { consulta: 'Consulta externa', cirugia: 'Cirugía', procedimiento: 'Procedimiento' }[patient.tipo_atencion]
+  const disabled    = !!pendingSelection
+  const tipo        = patient.tipo_atencion
+  const tipoLabel   = { consulta: 'Consulta externa', cirugia: 'Cirugía', procedimiento: 'Procedimiento' }[tipo]
+  const servicioLabel = tipo === 'cirugia' ? 'Cirugía' : tipo === 'procedimiento' ? 'Procedimiento' : 'Consulta'
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -29,14 +31,27 @@ export default function Step3Case({ patient, onAnswer, pendingSelection }: Props
         </p>
         <div className="bg-ccss-light dark:bg-gray-700/50 rounded-xl p-4 space-y-2">
           <CaseDetail label="Tipo de atención" value={tipoLabel} />
-          {patient.tipo_atencion !== 'consulta' && (
-            <CaseDetail label={patient.tipo_atencion === 'cirugia' ? 'Cirugía' : 'Procedimiento'} value={patient.nombre_servicio} />
+          <CaseDetail label={servicioLabel}     value={patient.nombre_servicio} />
+          <CaseDetail label="Especialidad"      value={patient.especialidad} />
+          <CaseDetail label="Centro médico"     value={patient.centro_medico} />
+
+          {/* Cirugía: procedimiento + lateralidad */}
+          {tipo === 'cirugia' && (
+            <>
+              <CaseDetail label="Procedimiento" value={patient.procedimiento} />
+              <CaseDetail label="Lateralidad"   value={patient.lateralidad} />
+            </>
           )}
-          {patient.tipo_atencion === 'cirugia' && (
-            <CaseDetail label="Lateralidad" value={patient.lateralidad} />
+
+          {/* Consulta / Procedimiento: tipo de consulta, lateralidad, fecha y hora */}
+          {(tipo === 'consulta' || tipo === 'procedimiento') && (
+            <>
+              <CaseDetail label="Tipo de consulta" value={patient.tipo_consulta} />
+              <CaseDetail label="Lateralidad"      value={patient.lateralidad} />
+              <CaseDetail label="Fecha de cita"    value={patient.fecha_cita} />
+              <CaseDetail label="Hora de cita"     value={patient.hora_cita} />
+            </>
           )}
-          <CaseDetail label="Especialidad"  value={patient.especialidad} />
-          <CaseDetail label="Centro médico" value={patient.centro_medico} />
         </div>
       </div>
 

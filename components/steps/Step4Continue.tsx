@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import StepOption from '@/components/StepOption'
-import { TipoAtencion, MOTIVOS_RETIRO } from '@/lib/types'
+import { MOTIVOS_RETIRO } from '@/lib/types'
 
 interface Props {
-  tipoAtencion:        TipoAtencion
   onContinue:          () => void
-  onDepurado:          (reason: 'ya_realizada' | 'ya_programada') => void
+  onNoAsegurado:       () => void
   onRenunciaIntent:    () => void
   onRenunciaConfirmed: (motivo: string) => void
   pendingSelection?:   string | null
@@ -15,16 +14,13 @@ interface Props {
 }
 
 export default function Step4Continue({
-  tipoAtencion, onContinue, onDepurado,
+  onContinue, onNoAsegurado,
   onRenunciaIntent, onRenunciaConfirmed,
   pendingSelection, confirmModalOpen,
 }: Props) {
-  const [showMotivos, setShowMotivos] = useState(false)
-  const disabled = !!pendingSelection || confirmModalOpen
-
-  // After confirm modal closes (confirmModalOpen goes false), show motivos
-  // We track if we entered renuncia flow
+  const [showMotivos, setShowMotivos]   = useState(false)
   const [renunciaFlow, setRenunciaFlow] = useState(false)
+  const disabled = !!pendingSelection || confirmModalOpen
 
   if (!confirmModalOpen && renunciaFlow && !showMotivos) {
     setShowMotivos(true)
@@ -32,7 +28,6 @@ export default function Step4Continue({
   }
 
   if (showMotivos) {
-    const motivos = MOTIVOS_RETIRO[tipoAtencion]
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
@@ -41,7 +36,7 @@ export default function Step4Continue({
           </p>
         </div>
         <div className="space-y-3">
-          {motivos.map((m, i) => (
+          {MOTIVOS_RETIRO.map((m, i) => (
             <StepOption
               key={m.value}
               value={m.value}
@@ -65,15 +60,12 @@ export default function Step4Continue({
         <StepOption value="si" label="1 · Sí, deseo continuar"
           selectedValue={pendingSelection ?? undefined} disabled={disabled}
           onClick={() => onContinue()} />
-        <StepOption value="no_ya_realizada" label="2 · No, ya me fue realizada"
-          selectedValue={pendingSelection ?? undefined} disabled={disabled}
-          onClick={() => onDepurado('ya_realizada')} />
-        <StepOption value="no_ya_programada" label="3 · No, ya la tengo programada"
-          selectedValue={pendingSelection ?? undefined} disabled={disabled}
-          onClick={() => onDepurado('ya_programada')} />
-        <StepOption value="no_ya_no_deseo" label="4 · No, ya no la deseo"
+        <StepOption value="no_ya_no_deseo" label="2 · No, ya no deseo esta atención"
           selectedValue={pendingSelection ?? undefined} disabled={disabled}
           onClick={() => { setRenunciaFlow(true); onRenunciaIntent() }} />
+        <StepOption value="no_asegurado" label="3 · Sí, pero no cuento con aseguramiento activo en la CCSS"
+          selectedValue={pendingSelection ?? undefined} disabled={disabled}
+          onClick={() => onNoAsegurado()} />
       </div>
     </div>
   )
