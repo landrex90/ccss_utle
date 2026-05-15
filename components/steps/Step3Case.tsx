@@ -18,22 +18,19 @@ function CaseDetail({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function Step3Case({ patient, onAnswer, pendingSelection }: Props) {
-  const disabled    = !!pendingSelection
-  const tipo        = patient.tipo_atencion
-  const tipoLabel   = { consulta: 'Consulta externa', cirugia: 'Cirugía', procedimiento: 'Procedimiento' }[tipo]
-  const servicioLabel = tipo === 'cirugia' ? 'Cirugía' : tipo === 'procedimiento' ? 'Procedimiento' : 'Consulta'
+  const disabled = !!pendingSelection
+  const tipo     = patient.tipo_atencion
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
         <p className="text-gray-800 dark:text-gray-100 text-base mb-4">
-          Según nuestros registros, usted se encuentra en lista de espera para la siguiente atención:
+          Según nuestros registros, usted está en lista de espera para:
         </p>
         <div className="bg-ccss-light dark:bg-gray-700/50 rounded-xl p-4 space-y-2">
-          <CaseDetail label="Tipo de atención" value={tipoLabel} />
-          <CaseDetail label={servicioLabel}     value={patient.nombre_servicio} />
-          <CaseDetail label="Especialidad"      value={patient.especialidad} />
-          <CaseDetail label="Centro médico"     value={patient.centro_medico} />
+          <CaseDetail label="Servicio"      value={patient.nombre_servicio} />
+          <CaseDetail label="Especialidad"  value={patient.especialidad} />
+          <CaseDetail label="Centro médico" value={patient.centro_medico} />
 
           {/* Cirugía: procedimiento + lateralidad */}
           {tipo === 'cirugia' && (

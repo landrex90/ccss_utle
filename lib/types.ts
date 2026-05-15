@@ -42,24 +42,23 @@ export interface FormAnswers {
   paso_abandono?: number | null
 }
 
-// 6 motivos uniformes para los 3 tipos de atención
 export const MOTIVOS_RETIRO: { value: string; label: string }[] = [
-  { value: 'ya_no_deseo_la_atencion', label: 'Ya no deseo esta atención' },
+  { value: 'ya_no_deseo_la_atencion', label: 'Ya no deseo la atención' },
   { value: 'acudi_ccss',              label: 'Acudí a otro centro de la CCSS' },
-  { value: 'acudi_privado',           label: 'Acudí a un centro médico privado' },
-  { value: 'ya_no_necesito',          label: 'Ya no necesito esta atención' },
+  { value: 'acudi_privado',           label: 'Acudí a otro centro médico privado' },
+  { value: 'ya_no_necesito',          label: 'Ya no necesito la atención' },
   { value: 'contraindicacion_medica', label: 'Contraindicación médica' },
   { value: 'fallecimiento',           label: 'Fallecimiento' },
 ]
 
 export const MOTIVOS_NO_ASISTIR = [
-  { value: 'fuera_del_pais',          label: 'Fuera del país o lugar de residencia' },
-  { value: 'enfermo',                 label: 'Me encuentro enfermo/a' },
-  { value: 'recuperandome',           label: 'Me estoy recuperando de una cirugía o procedimiento' },
-  { value: 'sin_medios_traslado',     label: 'No tengo los medios para trasladarme' },
-  { value: 'sin_acompanante',         label: 'No tengo acompañante' },
-  { value: 'conflicto_laboral',       label: 'Conflicto con horario laboral' },
-  { value: 'cuido_dependiente',       label: 'Debo cuidar a una persona dependiente' },
-  { value: 'contraindicacion_medica', label: 'Contraindicación médica temporal' },
-  { value: 'otros',                   label: 'Otros' },
+  { value: 'problemas_salud',       label: 'Problemas de salud' },
+  { value: 'hospitalizacion',       label: 'Hospitalización o recuperación médica' },
+  { value: 'falta_transporte',      label: 'Falta de transporte o traslado' },
+  { value: 'falta_acompanante',     label: 'Falta de acompañante o situación familiar' },
+  { value: 'obligaciones',          label: 'Obligaciones laborales, académicas o legales' },
+  { value: 'problemas_economicos',  label: 'Problemas económicos' },
+  { value: 'fuera_pais',            label: 'Fuera del país o de la zona' },
+  { value: 'decision_personal',     label: 'Decisión personal' },
+  { value: 'otro_motivo',           label: 'Otro motivo' },
 ]

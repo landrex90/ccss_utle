@@ -32,7 +32,7 @@ export default function Step4Continue({
       <div className="space-y-6 animate-fade-in">
         <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
           <p className="text-gray-800 dark:text-gray-100 text-base">
-            ¿Cuál es el motivo por el que ya no desea continuar con esta atención?
+            Motivo del retiro
           </p>
         </div>
         <div className="space-y-3">
@@ -60,10 +60,10 @@ export default function Step4Continue({
         <StepOption value="si" label="1 · Sí, deseo continuar"
           selectedValue={pendingSelection ?? undefined} disabled={disabled}
           onClick={() => onContinue()} />
-        <StepOption value="no_ya_no_deseo" label="2 · No, ya no deseo esta atención"
+        <StepOption value="no_ya_no_deseo" label="2 · No, ya no la deseo"
           selectedValue={pendingSelection ?? undefined} disabled={disabled}
           onClick={() => { setRenunciaFlow(true); onRenunciaIntent() }} />
-        <StepOption value="no_asegurado" label="3 · Sí, pero no cuento con aseguramiento activo en la CCSS"
+        <StepOption value="no_asegurado" label="3 · Sí, pero no estoy asegurado"
           selectedValue={pendingSelection ?? undefined} disabled={disabled}
           onClick={() => onNoAsegurado()} />
       </div>

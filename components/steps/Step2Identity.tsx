@@ -5,15 +5,15 @@ import { useState } from 'react'
 interface Props {
   token: string
   onSuccess: (intentos: number, verificationToken: string) => void
-  onFailed: (intentos: number) => void
+  onFailed:  (intentos: number) => void
 }
 
 const MAX_ATTEMPTS = 3
 
 export default function Step2Identity({ token, onSuccess, onFailed }: Props) {
-  const [digits, setDigits] = useState('')
+  const [digits,  setDigits]  = useState('')
   const [attempt, setAttempt] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [error,   setError]   = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -24,13 +24,13 @@ export default function Step2Identity({ token, onSuccess, onFailed }: Props) {
     setError(null)
 
     try {
-      const res = await fetch('/api/validate-identity', {
-        method: 'POST',
+      const res  = await fetch('/api/validate-identity', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, digits }),
+        body:    JSON.stringify({ token, digits }),
       })
 
-      const data = await res.json()
+      const data       = await res.json()
       const newAttempt = attempt + 1
       setAttempt(newAttempt)
 
@@ -44,10 +44,7 @@ export default function Step2Identity({ token, onSuccess, onFailed }: Props) {
         return
       }
 
-      const remaining = MAX_ATTEMPTS - newAttempt
-      setError(
-        `El valor indicado es incorrecto. Por favor vuelva a intentarlo. Intento ${newAttempt} de ${MAX_ATTEMPTS}. Le quedan ${remaining} intento${remaining !== 1 ? 's' : ''}.`
-      )
+      setError('La información ingresada no coincide con nuestros registros. Por favor verifique los datos e inténtelo nuevamente.')
       setDigits('')
     } catch {
       setError('Ocurrió un error de conexión. Por favor intente nuevamente.')
@@ -58,12 +55,13 @@ export default function Step2Identity({ token, onSuccess, onFailed }: Props) {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="card p-6">
+      <div className="card p-6 space-y-2">
         <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed">
-          Para continuar, por favor digite los <strong>últimos 4 dígitos</strong> de su número de asegurado.
+          Para continuar, por favor digite los <strong>últimos 4 dígitos</strong> de su número
+          de asegurado, incluyendo ceros.
         </p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-          Ejemplo: si su número es 1-2345-6789, digite <strong>6789</strong>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Ejemplo: si su número es 1-0234-0789, digite <strong>0789</strong>
         </p>
       </div>
 

@@ -27,16 +27,16 @@ interface ConfirmState {
 
 const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
   NO_AUTORIZO: {
-    title:   'Entendemos su decisión',
-    message: `Si en el futuro desea actualizar sus datos o tiene alguna consulta, puede comunicarse a:\n${CONTACT_EMAIL}\n\nMuchas gracias.`,
+    title:   'Entendemos y respetamos su decisión',
+    message: `Si en el futuro desea actualizar su información o tiene consultas relacionadas con su atención pendiente, puede comunicarse con la CCSS al correo:\n${CONTACT_EMAIL}\n\nGracias por su tiempo.`,
   },
   NO_VERIFICADO: {
-    title:   'No pudimos verificar su identidad',
-    message: `Si usted se encuentra en lista de espera y desea continuar el proceso, comuníquese a:\n${CONTACT_EMAIL}`,
+    title:   'No fue posible verificar su identidad',
+    message: `Por seguridad, el proceso ha sido finalizado temporalmente.\n\nSi considera que se trata de un error o necesita apoyo para actualizar su información, puede escribirnos al correo:\n${CONTACT_EMAIL}\n\nGracias por su comprensión.`,
   },
   INFO_INCORRECTA: {
-    title:   'Información no coincide',
-    message: `Gracias por indicarlo. Si considera que esto es un error, comuníquese a:\n${CONTACT_EMAIL}\n\nMuchas gracias por su tiempo.`,
+    title:   'Gracias por informarnos',
+    message: `Para revisar correctamente su caso, por favor indíquenos cuáles datos considera que presentan algún error o requieren corrección.\n\nLa información brindada será revisada por el equipo correspondiente de la CCSS.\n\nSi desea ampliar detalles adicionales, puede escribirnos a:\n${CONTACT_EMAIL}`,
   },
   DEPURADO_YA_ATENDIDO: {
     title:   'Muchas gracias',
@@ -47,16 +47,16 @@ const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
     message: 'Nos alegra saber que ya tiene programada su atención.\nLa CCSS está para servirle.',
   },
   DEPURADO_RENUNCIA: {
-    title:   'Entendemos su decisión',
-    message: `Registraremos que ya no desea continuar con esta atención y su caso será retirado de la lista de espera.\n\nSi en el futuro desea retomar el proceso, comuníquese a:\n${CONTACT_EMAIL}\n\nMuchas gracias.`,
+    title:   'Muchas gracias por brindarnos esta información',
+    message: `Sus respuestas serán utilizadas para actualizar la gestión administrativa de la lista de espera de la CCSS.\n\nSi tiene alguna consulta adicional relacionada con este proceso, puede comunicarse al correo:\n${CONTACT_EMAIL}\n\nLe agradecemos su tiempo y colaboración.`,
   },
   NO_ASEGURADO: {
-    title:   'Hemos registrado su respuesta',
-    message: `Hemos tomado nota de que usted no cuenta con aseguramiento activo en la CCSS.\n\nPara regularizar su situación o si considera que esto es un error, comuníquese a:\n${CONTACT_EMAIL}`,
+    title:   'Agradecemos su respuesta',
+    message: `Le solicitamos por favor actualizar su estado administrativo ante la CCSS para poder continuar con su atención.\n\n${CONTACT_EMAIL}`,
   },
   ACTIVO: {
-    title:   'Muchas gracias por su información',
-    message: `Sus datos han sido actualizados correctamente. Por favor esté pendiente de llamadas, mensajes o correos de la CCSS.\n\nSi tiene alguna consulta:\n${CONTACT_EMAIL}`,
+    title:   'Muchas gracias por brindarnos esta información',
+    message: `Sus respuestas serán utilizadas por la CCSS para actualizar y gestionar su caso dentro de la lista de espera.\n\nLa actualización realizada no modifica automáticamente su posición en la lista, pero permitirá mejorar la gestión y contacto relacionado con su atención.\n\nPor favor manténgase atento/a a futuras comunicaciones de la CCSS por los medios autorizados.\n\nSi tiene dudas o consultas adicionales:\n${CONTACT_EMAIL}\n\nRecuerde que la CCSS nunca solicitará contraseñas, códigos bancarios ni pagos.`,
   },
 }
 
@@ -237,8 +237,8 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
 
   function handleRenunciaIntent() {
     setConfirmModal({
-      title:   '¿Está seguro de que desea retirarse?',
-      message: `Esta acción retirará su caso de la lista de espera. Si en el futuro desea retomarlo, comuníquese a ${CONTACT_EMAIL}.`,
+      title:   '¿Está seguro de que ya no desea esta atención?',
+      message: 'Su caso será retirado de la lista de espera. Por favor indique el motivo a continuación.',
       onConfirm: () => setConfirmModal(null),
     })
   }
@@ -340,10 +340,13 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
         <ProgressBar currentStep={4} totalSteps={6} canGoBack={false} onBack={() => {}} />
         <AnswersSummary entries={completedAnswers.filter(e => e.step <= 4)} />
         <div className="space-y-6 animate-fade-in">
-          <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
+          <div className="card dark:bg-gray-800 dark:border-gray-700 p-6 space-y-3">
             <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed">
-              Nos alegra saber que desea continuar con su atención.
-              A continuación le haremos unas preguntas sobre su disponibilidad para recibir la cita o procedimiento.
+              Le informamos que usted continúa activo en la lista de espera.
+            </p>
+            <p className="text-gray-700 dark:text-gray-200 text-sm leading-relaxed">
+              Su atención sigue siendo importante para la CCSS.
+              Las siguientes preguntas nos ayudan a gestionar mejor su caso.
             </p>
           </div>
           <button

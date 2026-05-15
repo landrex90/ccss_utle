@@ -31,10 +31,13 @@ export default function Step5Conditions({ onDone, pendingSelection }: Props) {
   if (subStep === '5a') {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
+        <div className="card dark:bg-gray-800 dark:border-gray-700 p-6 space-y-3">
           <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed">
-            Con el fin de agilizar su atención, ¿estaría usted dispuesto/a a ser
-            atendido/a en <strong>otro centro médico de la CCSS</strong> diferente al asignado?
+            ¿Estaría dispuesto/a a ser atendido/a en otro centro médico de la CCSS
+            si existiera una oportunidad mediante un programa especial o campaña?
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            En ocasiones esto permite adelantar atenciones médicas.
           </p>
         </div>
         <div className="space-y-3">
@@ -54,11 +57,7 @@ export default function Step5Conditions({ onDone, pendingSelection }: Props) {
       <div className="space-y-6 animate-fade-in">
         <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
           <p className="text-gray-800 dark:text-gray-100 text-base leading-relaxed">
-            Si se le asigna una cita próximamente, ¿se encuentra en <strong>condiciones de asistir</strong>?
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            Por ejemplo: que esté en el país, que no tenga una enfermedad infecciosa activa
-            o alguna situación temporal que le impida acudir.
+            Si se le asigna una cita próximamente, ¿se encuentra en condiciones de asistir?
           </p>
         </div>
         <div className="space-y-3">
@@ -77,7 +76,7 @@ export default function Step5Conditions({ onDone, pendingSelection }: Props) {
     <div className="space-y-6 animate-fade-in">
       <div className="card dark:bg-gray-800 dark:border-gray-700 p-6">
         <p className="text-gray-800 dark:text-gray-100 text-base">
-          ¿Cuál es el motivo por el que no puede asistir?
+          Motivo de no asistencia
         </p>
       </div>
       <div className="space-y-3">
