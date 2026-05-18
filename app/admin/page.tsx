@@ -95,7 +95,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Campaign table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="font-medium text-gray-700 dark:text-gray-200">Por campaña</h2>
         </div>
@@ -159,7 +159,7 @@ function StatCard({
   }[color]
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4">
+    <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4">
       <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
       <p className={`text-3xl font-bold mt-1 ${colorClass}`}>{value.toLocaleString()}</p>
     </div>
@@ -170,7 +170,7 @@ function QuickAction({ href, label, icon }: { href: string; label: string; icon:
   return (
     <Link
       href={href}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center gap-3 hover:border-[#005d8f] dark:hover:border-[#0080c0] hover:shadow-md transition-all group"
+      className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center gap-3 hover:border-[#005d8f] dark:hover:border-[#0080c0] hover:shadow-md transition-all group"
     >
       <span className="text-2xl text-[#005d8f] dark:text-[#0080c0] group-hover:scale-110 transition-transform">{icon}</span>
       <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>

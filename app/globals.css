@@ -132,6 +132,73 @@
   }
 }
 
+/* ── High-contrast universal helpers ──────────────────────────
+   Applied via class names in JSX so they work alongside dark: utilities.
+   !important is required to beat Tailwind's utility specificity.
+   ──────────────────────────────────────────────────────────── */
+
+/* hc-page: page-level background containers */
+.high-contrast .hc-page { background-color: white !important; }
+.dark.high-contrast .hc-page { background-color: black !important; }
+
+/* hc-surface: card / panel backgrounds not using .card */
+.high-contrast .hc-surface {
+  background-color: white !important;
+  border: 2px solid black !important;
+  box-shadow: none !important;
+}
+.dark.high-contrast .hc-surface {
+  background-color: black !important;
+  border: 2px solid white !important;
+}
+/* Force all text inside hc-surface to strict black / white */
+.high-contrast .hc-surface * { color: black !important; }
+.dark.high-contrast .hc-surface * { color: white !important; }
+/* Buttons inside hc-surface: black bg / white text (and reverse for dark) */
+.high-contrast .hc-surface button { background-color: black !important; color: white !important; border: 2px solid black !important; }
+.dark.high-contrast .hc-surface button { background-color: white !important; color: black !important; border: 2px solid white !important; }
+/* Re-allow .btn-primary and destructive buttons to keep their own HC rules */
+.high-contrast .hc-surface .btn-primary,
+.high-contrast .hc-surface .btn-secondary {
+  background-color: black !important; color: white !important; border: 2px solid black !important;
+}
+.dark.high-contrast .hc-surface .btn-primary,
+.dark.high-contrast .hc-surface .btn-secondary {
+  background-color: white !important; color: black !important; border: 2px solid white !important;
+}
+
+/* hc-input: form inputs / textareas */
+.high-contrast .hc-input {
+  background-color: white !important;
+  border: 2px solid black !important;
+  color: black !important;
+}
+.dark.high-contrast .hc-input {
+  background-color: black !important;
+  border: 2px solid white !important;
+  color: white !important;
+}
+
+/* hc-code: monospace log / code areas */
+.high-contrast .hc-code {
+  background-color: white !important;
+  border: 1px solid black !important;
+  color: black !important;
+}
+.dark.high-contrast .hc-code {
+  background-color: black !important;
+  border: 1px solid white !important;
+  color: white !important;
+}
+
+/* hc-badge: colored status pills → become monochrome in HC */
+.high-contrast .hc-badge { background-color: white !important; border: 1px solid black !important; color: black !important; }
+.dark.high-contrast .hc-badge { background-color: black !important; border: 1px solid white !important; color: white !important; }
+
+/* Accessibility toggle button */
+.high-contrast .a11y-toggle { background-color: black !important; color: white !important; border: 2px solid black; }
+.dark.high-contrast .a11y-toggle { background-color: white !important; color: black !important; border: 2px solid white; }
+
 @layer utilities {
   .animate-fade-in {
     animation: fadeIn 0.25s ease-out forwards;

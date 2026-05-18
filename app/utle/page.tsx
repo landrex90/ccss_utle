@@ -91,7 +91,7 @@ export default async function UTLEPage({ searchParams }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 hc-page py-8 px-4">
       <div className="max-w-lg mx-auto">
         <CCSSHeader />
         <UTLEForm patient={patient} token={t} />

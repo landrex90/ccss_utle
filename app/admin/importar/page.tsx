@@ -103,7 +103,7 @@ export default function ImportarPage() {
         </p>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* File upload */}
           <div>
@@ -134,7 +134,7 @@ export default function ImportarPage() {
               type="url"
               value={baseUrl}
               onChange={e => setBaseUrl(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
+              className="hc-input w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
                          focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0]"
               placeholder="https://ccss-utle-preprod.netlify.app"
@@ -150,7 +150,7 @@ export default function ImportarPage() {
               type="text"
               value={campanaId}
               onChange={e => setCampanaId(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
+              className="hc-input w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
                          focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0]"
               placeholder="ej: 2026-05-01_HospMexico"
@@ -169,7 +169,7 @@ export default function ImportarPage() {
 
       {/* Progress log */}
       {(log.length > 0 || loading) && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
             <h2 className="font-medium text-gray-700 dark:text-gray-200">Registro de importación</h2>
             <div className="flex gap-3 text-xs">
@@ -180,7 +180,7 @@ export default function ImportarPage() {
             </div>
           </div>
 
-          <div className="h-72 overflow-y-auto font-mono text-xs p-4 bg-gray-50 dark:bg-gray-900 space-y-0.5">
+          <div className="hc-code h-72 overflow-y-auto font-mono text-xs p-4 bg-gray-50 dark:bg-gray-900 space-y-0.5">
             {log.map((entry, i) => (
               <div
                 key={i}
@@ -214,7 +214,7 @@ export default function ImportarPage() {
 
       {/* Summary */}
       {summary && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-5 py-4">
+        <div className="hc-surface bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-5 py-4">
           <h3 className="font-medium text-green-800 dark:text-green-300 mb-2">Importación completada</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>

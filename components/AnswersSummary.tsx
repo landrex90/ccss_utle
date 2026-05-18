@@ -22,7 +22,7 @@ export default function AnswersSummary({ entries }: Props) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl
+        className="hc-surface w-full flex items-center justify-between px-4 py-2.5 rounded-xl
                    bg-ccss-light dark:bg-gray-700/50 border border-ccss-primary/20 dark:border-gray-600
                    text-sm font-medium text-ccss-primary dark:text-ccss-accent
                    hover:bg-ccss-light/80 transition-colors

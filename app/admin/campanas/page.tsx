@@ -37,15 +37,15 @@ async function getCampanasData(): Promise<CampanaStats[]> {
 }
 
 const ESTADO_COLORS: Record<string, string> = {
-  PENDIENTE:              'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  ACTIVO:                 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
-  NO_AUTORIZO:            'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  NO_VERIFICADO:          'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  INFO_INCORRECTA:        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  DEPURADO_YA_ATENDIDO:   'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  DEPURADO_YA_PROGRAMADO: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  DEPURADO_RENUNCIA:      'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  NO_ASEGURADO:           'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  PENDIENTE:              'hc-badge bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+  ACTIVO:                 'hc-badge bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+  NO_AUTORIZO:            'hc-badge bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  NO_VERIFICADO:          'hc-badge bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  INFO_INCORRECTA:        'hc-badge bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  DEPURADO_YA_ATENDIDO:   'hc-badge bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  DEPURADO_YA_PROGRAMADO: 'hc-badge bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  DEPURADO_RENUNCIA:      'hc-badge bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  NO_ASEGURADO:           'hc-badge bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 }
 
 export default async function CampanasPage() {
@@ -66,7 +66,7 @@ export default async function CampanasPage() {
       </div>
 
       {campanas.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-12 text-center">
+        <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-12 text-center">
           <p className="text-gray-400 dark:text-gray-500">No hay campañas registradas.</p>
         </div>
       ) : (
@@ -74,7 +74,7 @@ export default async function CampanasPage() {
           {campanas.map(campana => (
             <div
               key={campana.campana_id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+              className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <div>
@@ -93,7 +93,7 @@ export default async function CampanasPage() {
                     <span
                       key={estado}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        ESTADO_COLORS[estado] ?? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                        ESTADO_COLORS[estado] ?? 'hc-badge bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
                       }`}
                     >
                       {estado}
@@ -108,7 +108,7 @@ export default async function CampanasPage() {
 
       {/* Full breakdown table */}
       {campanas.length > 0 && allEstados.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-medium text-gray-700 dark:text-gray-200">Tabla comparativa</h2>
           </div>

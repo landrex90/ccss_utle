@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="flex items-center justify-center py-8 px-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md w-full max-w-sm p-8 border border-gray-200 dark:border-gray-700">
+      <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-md w-full max-w-sm p-8 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col items-center mb-6">
           <Image
             src="/logos/ccss-logo.png"
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
               onChange={e => setPassword(e.target.value)}
               required
               autoFocus
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
+              className="hc-input w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
                          bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                          focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0] focus:border-transparent"
               placeholder="Ingrese la contraseña"

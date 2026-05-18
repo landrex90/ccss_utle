@@ -15,7 +15,7 @@ export default function AccessibilityMenu() {
       <button
         onClick={() => setOpen(o => !o)}
         aria-label="Opciones de accesibilidad"
-        className="w-10 h-10 rounded-full bg-ccss-primary dark:bg-ccss-accent text-white shadow-lg
+        className="a11y-toggle w-10 h-10 rounded-full bg-ccss-primary dark:bg-ccss-accent text-white shadow-lg
                    flex items-center justify-center hover:bg-ccss-dark transition-colors
                    focus:outline-none focus:ring-2 focus:ring-ccss-primary focus:ring-offset-2"
       >

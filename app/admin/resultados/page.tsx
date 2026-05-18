@@ -58,7 +58,7 @@ export default function ResultadosPage() {
         </p>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Canal selector */}
           <div>
@@ -90,7 +90,7 @@ export default function ResultadosPage() {
               accept=".csv,text/csv"
               required
               onChange={e => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-600 dark:text-gray-300
+              className="hc-input block w-full text-sm text-gray-600 dark:text-gray-300
                          file:mr-3 file:py-1.5 file:px-4 file:rounded file:border-0
                          file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#005d8f]
                          dark:file:bg-gray-700 dark:file:text-blue-300
@@ -120,7 +120,7 @@ export default function ResultadosPage() {
 
       {/* Result summary */}
       {result && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-medium text-gray-700 dark:text-gray-200">Resumen</h2>
           </div>
@@ -149,7 +149,7 @@ export default function ResultadosPage() {
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">
                   Detalles
                 </p>
-                <div className="bg-gray-50 dark:bg-gray-900 rounded p-3 h-48 overflow-y-auto font-mono text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
+                <div className="hc-code bg-gray-50 dark:bg-gray-900 rounded p-3 h-48 overflow-y-auto font-mono text-xs text-gray-600 dark:text-gray-300 space-y-0.5">
                   {result.detalles.map((d, i) => (
                     <div key={i}>{d}</div>
                   ))}
