@@ -1,9 +1,9 @@
-# Minuta de Acuerdos y Pendientes
+# Minuta de Reunión de Trabajo
 **Proyecto:** Plataforma de Actualización de Lista de Espera — UTLE  
 **Contrato:** 2026LE-000001-2299  
-**Reunión:** [PENDIENTE — fecha y hora]  
-**Lugar / Modalidad:** [PENDIENTE]  
-**Versión:** 1.0 | Fecha: 18 de mayo de 2026  
+**Fecha:** Jueves 21 de mayo de 2026  
+**Modalidad:** [Presencial / Virtual — confirmar]  
+**Versión:** 1.1 | Actualizado: 18 de mayo de 2026
 
 ---
 
@@ -11,17 +11,64 @@
 
 | Nombre | Organización | Cargo | Correo |
 |--------|-------------|-------|--------|
-| Andres Zapata | Coco Technology | [PENDIENTE — cargo] | a.zapata@cocotech.ai |
-| Mariam Castillo | CCSS — UTLE | Ing. en Sistemas | gm_utle_gelisespera@ccss.sa.cr |
+| Andres Zapata | Coco Tech AI | [Cargo] | a.zapata@cocotech.ai |
+| Ing. Mariam Castillo | CCSS — UTLE | Ing. en Sistemas | gm_utle_gelisespera@ccss.sa.cr |
 
 ---
 
-## Documentos revisados en la reunión
+## Agenda propuesta (3 horas)
 
-- [ ] 01 — Ficha de alcance del sistema
-- [ ] 02 — Flujo de datos y estados del paciente
-- [ ] 03 — Ficha de seguridad y manejo de datos
-- [ ] 04 — Manual operativo (SOP)
+| Hora | Bloque | Tema |
+|------|--------|------|
+| 00:00 | Bloque 1 (45 min) | Demostración de la plataforma — flujo completo en vivo |
+| 00:45 | Bloque 2 (60 min) | Revisión de documentación técnica |
+| 01:45 | Bloque 3 (30 min) | Seguridad y manejo de datos |
+| 02:15 | Bloque 4 (30 min) | Procedimientos operativos y herramientas |
+| 02:45 | Bloque 5 (15 min) | Pendientes, acuerdos y firmas |
+
+---
+
+## Bloque 1 — Demostración en vivo
+
+**Links de prueba (válidos 3 días, PIN: 1234):**
+
+| Registro | Tipo | URL |
+|----------|------|-----|
+| TEST-AZ-001 | Consulta | https://ccss-utle-preprod.netlify.app/utle?t=a3d46938-9136-414d-89ec-2f5362decfc1 |
+| TEST-AZ-002 | Cirugía | https://ccss-utle-preprod.netlify.app/utle?t=d49fc70e-052c-4278-a7f2-fb34c711206d |
+| TEST-AZ-003 | Procedimiento | https://ccss-utle-preprod.netlify.app/utle?t=17b16466-7b3d-4ee1-9a28-1798eb205b76 |
+
+**Puntos a mostrar:**
+- [ ] Flujo completo de los 6 pasos (consulta, cirugía, procedimiento)
+- [ ] Verificación de identidad con PIN
+- [ ] Pantallas de cierre según decisión del paciente
+- [ ] Plantilla del correo electrónico (PDF: `scripts/plantilla_correo_ccss_v2.pdf`)
+- [ ] Arquitectura multicanal: WhatsApp → Llamada → Correo
+
+---
+
+## Bloque 2 — Revisión de documentos
+
+Documentos a revisar y validar en la reunión:
+
+| # | Documento | Acción |
+|---|-----------|--------|
+| 1 | Ficha de alcance del sistema | Revisar y firmar |
+| 2 | Flujo de datos y estados del paciente | Revisar |
+| 3 | Ficha de seguridad y manejo de datos | Revisar — **definir política de retención** |
+| 4 | Manual operativo (SOP) | Revisar procedimientos |
+
+---
+
+## Puntos críticos a definir en la reunión
+
+| # | Punto | Por qué es urgente |
+|---|-------|--------------------|
+| 1 | **Política de retención de datos** | Requerida antes de la primera campaña real. ¿Cuánto tiempo se guardan los registros? |
+| 2 | **Cuentas Google para Looker Studio** | Para activar el dashboard de monitoreo en tiempo real |
+| 3 | **Fecha y volumen del primer lote CSV** | Necesario para prueba piloto en semana del 29 de mayo |
+| 4 | **Confirmación del número WhatsApp Business** | Bloqueante para el canal WhatsApp |
+| 5 | **URL de producción definitiva** | Para configurar antes del despliegue a producción |
 
 ---
 
@@ -35,25 +82,23 @@
 
 ---
 
-## Pendientes identificados
+## Pendientes al cierre
 
 | # | Pendiente | Responsable | Fecha límite | Estado |
 |---|-----------|-------------|-------------|--------|
-| 1 | Confirmar URL de producción definitiva | Coco Technology | [PENDIENTE] | Abierto |
-| 2 | Definir política de retención de datos de pacientes | UTLE + Coco Technology | [PENDIENTE] | Abierto |
-| 3 | Configuración DNS para correo `gm_utle_gelisespera@ccss.sa.cr` | TI CCSS (gestión Ing. Mariam Carvajal) | [PENDIENTE] | En gestión |
-| 4 | Manual de marca CCSS para ajustes de identidad visual | UTLE | [PENDIENTE] | En espera |
-| 5 | Configurar dashboard Looker Studio + Google Sheets para seguimiento en tiempo real | Coco Technology | [PENDIENTE] | En desarrollo |
-| 5a | Confirmar cuentas de Google con acceso al dashboard (UTLE) | Mariam Castillo | [PENDIENTE] | Abierto |
-| 5b | Definir métricas prioritarias para el dashboard | UTLE + Coco Technology | [PENDIENTE] | Abierto |
-| 6 | Despliegue al ambiente de producción | Coco Technology | [PENDIENTE] | Pendiente autorización |
-| 7 | Definir fecha y volumen de primera campaña real | UTLE | [PENDIENTE] | Abierto |
+| 1 | Configuración DNS correo institucional | TI CCSS (vía Ing. Mariam Carvajal) | 29 mayo | En gestión |
+| 2 | Manual de marca CCSS | UTLE | 29 mayo | En espera |
+| 3 | Número WhatsApp Business | UTLE | 29 mayo | En espera |
+| 4 | Primer lote CSV de pacientes | UTLE | 5 junio | Abierto |
+| 5 | Cuentas Google — acceso Looker Studio | UTLE (Ing. Castillo) | 28 mayo | Abierto |
+| 6 | Política de retención de datos | UTLE / Jurídico | 28 mayo | Abierto |
+| 7 | Despliegue producción | Coco Tech | 12 junio | Pendiente |
 
 ---
 
-## Observaciones
+## Observaciones de la reunión
 
-[Espacio para notas durante la reunión]
+_[Espacio para notas durante la sesión]_
 
 ---
 
@@ -62,9 +107,9 @@
 | | |
 |--|--|
 | **Andres Zapata** | **Ing. Mariam Castillo** |
-| Coco Technology | CCSS — UTLE |
-| Fecha: | Fecha: |
+| Coco Tech AI | CCSS — UTLE |
+| Fecha: 21/05/2026 | Fecha: 21/05/2026 |
 
 ---
 
-*Minuta elaborada por Coco Technology — para validación y firma de ambas partes*
+*Minuta elaborada por Coco Tech AI — para validación y firma de ambas partes*
