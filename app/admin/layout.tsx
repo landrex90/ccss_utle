@@ -1,5 +1,3 @@
-import { redirect } from 'next/navigation'
-import { validateAdminSessionServer } from '@/lib/admin-auth'
 import Image from 'next/image'
 import Link from 'next/link'
 import LogoutClientButton from './LogoutClientButton'
@@ -10,11 +8,6 @@ export const metadata = {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const isValid = validateAdminSessionServer()
-  if (!isValid) {
-    redirect('/admin/login')
-  }
-
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Top nav */}
