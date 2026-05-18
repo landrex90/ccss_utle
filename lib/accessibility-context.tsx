@@ -27,9 +27,12 @@ export function A11yProvider({ children }: { children: React.ReactNode }) {
   const [mounted,  setMounted]  = useState(false)
 
   useEffect(() => {
-    const t = (localStorage.getItem('utle-theme')    as Theme)    || 'light'
-    const c = (localStorage.getItem('utle-contrast') as Contrast) || 'normal'
-    const f = (localStorage.getItem('utle-font')     as FontSize) || 'normal'
+    const raw_t = localStorage.getItem('utle-theme')
+    const raw_c = localStorage.getItem('utle-contrast')
+    const raw_f = localStorage.getItem('utle-font')
+    const t: Theme    = raw_t === 'dark' ? 'dark' : 'light'
+    const c: Contrast = raw_c === 'high' ? 'high' : 'normal'
+    const f: FontSize = raw_f === 'large' ? 'large' : raw_f === 'xlarge' ? 'xlarge' : 'normal'
     setTheme(t); setContrast(c); setFontSize(f)
     setMounted(true)
   }, [])

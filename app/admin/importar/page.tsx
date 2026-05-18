@@ -97,17 +97,17 @@ export default function ImportarPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Importar pacientes</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Importar pacientes</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           Carga un CSV con datos de pacientes y genera sus URLs personalizadas.
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* File upload */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               Archivo CSV <span className="text-red-500">*</span>
             </label>
             <input
@@ -115,9 +115,13 @@ export default function ImportarPage() {
               accept=".csv,text/csv"
               required
               onChange={e => setFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#005d8f] hover:file:bg-[#c8e3f0] cursor-pointer"
+              className="block w-full text-sm text-gray-600 dark:text-gray-300
+                         file:mr-3 file:py-1.5 file:px-4 file:rounded file:border-0
+                         file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#005d8f]
+                         dark:file:bg-gray-700 dark:file:text-blue-300
+                         hover:file:bg-[#c8e3f0] dark:hover:file:bg-gray-600 cursor-pointer"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
               Columnas requeridas: nombre_paciente, numero_asegurado, correo, centro_medico,
               tipo_atencion, ultimos_4_asegurado
             </p>
@@ -125,26 +129,30 @@ export default function ImportarPage() {
 
           {/* Base URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">URL base</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">URL base</label>
             <input
               type="url"
               value={baseUrl}
               onChange={e => setBaseUrl(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005d8f]"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0]"
               placeholder="https://ccss-utle-preprod.netlify.app"
             />
           </div>
 
           {/* Campaign ID */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              ID de campaña <span className="text-gray-400">(opcional)</span>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              ID de campaña <span className="text-gray-400 dark:text-gray-500">(opcional)</span>
             </label>
             <input
               type="text"
               value={campanaId}
               onChange={e => setCampanaId(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#005d8f]"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                         focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0]"
               placeholder="ej: 2026-05-01_HospMexico"
             />
           </div>
@@ -161,43 +169,43 @@ export default function ImportarPage() {
 
       {/* Progress log */}
       {(log.length > 0 || loading) && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-medium text-gray-700">Registro de importación</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+            <h2 className="font-medium text-gray-700 dark:text-gray-200">Registro de importación</h2>
             <div className="flex gap-3 text-xs">
-              <span className="text-green-600 font-medium">{successCount} OK</span>
+              <span className="text-green-600 dark:text-green-400 font-medium">{successCount} OK</span>
               {errorCount > 0 && (
-                <span className="text-red-600 font-medium">{errorCount} errores</span>
+                <span className="text-red-600 dark:text-red-400 font-medium">{errorCount} errores</span>
               )}
             </div>
           </div>
 
-          <div className="h-72 overflow-y-auto font-mono text-xs p-4 bg-gray-50 space-y-0.5">
+          <div className="h-72 overflow-y-auto font-mono text-xs p-4 bg-gray-50 dark:bg-gray-900 space-y-0.5">
             {log.map((entry, i) => (
               <div
                 key={i}
-                className={`flex gap-2 ${entry.ok === false ? 'text-red-600' : 'text-gray-700'}`}
+                className={`flex gap-2 ${entry.ok === false ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300'}`}
               >
-                <span className="text-gray-400 select-none w-10 flex-shrink-0">
+                <span className="text-gray-400 dark:text-gray-500 select-none w-10 flex-shrink-0">
                   {entry.row ? `r${entry.row}` : ''}
                 </span>
                 {entry.ok ? (
                   <span>
-                    <span className="text-green-600">✓</span>{' '}
-                    <span className="text-[#005d8f]">[{entry.id}]</span>{' '}
-                    <span className="text-gray-500 break-all">{entry.url}</span>
+                    <span className="text-green-600 dark:text-green-400">✓</span>{' '}
+                    <span className="text-[#005d8f] dark:text-[#0080c0]">[{entry.id}]</span>{' '}
+                    <span className="text-gray-500 dark:text-gray-400 break-all">{entry.url}</span>
                   </span>
                 ) : (
                   <span>
-                    <span className="text-red-500">✗</span>{' '}
-                    {entry.id && <span className="text-gray-700">[{entry.id}]</span>}{' '}
+                    <span className="text-red-500 dark:text-red-400">✗</span>{' '}
+                    {entry.id && <span className="text-gray-700 dark:text-gray-300">[{entry.id}]</span>}{' '}
                     {entry.error}
                   </span>
                 )}
               </div>
             ))}
             {loading && (
-              <div className="text-gray-400 animate-pulse">procesando…</div>
+              <div className="text-gray-400 dark:text-gray-500 animate-pulse">procesando…</div>
             )}
             <div ref={logEndRef} />
           </div>
@@ -206,24 +214,24 @@ export default function ImportarPage() {
 
       {/* Summary */}
       {summary && (
-        <div className="bg-green-50 border border-green-200 rounded-lg px-5 py-4">
-          <h3 className="font-medium text-green-800 mb-2">Importación completada</h3>
-          <div className="grid grid-cols-4 gap-4 text-sm">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-5 py-4">
+          <h3 className="font-medium text-green-800 dark:text-green-300 mb-2">Importación completada</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Total filas</p>
-              <p className="font-semibold text-gray-800">{summary.total}</p>
+              <p className="text-gray-500 dark:text-gray-400">Total filas</p>
+              <p className="font-semibold text-gray-800 dark:text-gray-100">{summary.total}</p>
             </div>
             <div>
-              <p className="text-gray-500">Insertados</p>
-              <p className="font-semibold text-green-700">{summary.insertados}</p>
+              <p className="text-gray-500 dark:text-gray-400">Insertados</p>
+              <p className="font-semibold text-green-700 dark:text-green-400">{summary.insertados}</p>
             </div>
             <div>
-              <p className="text-gray-500">Inválidos</p>
-              <p className="font-semibold text-yellow-700">{summary.invalidos}</p>
+              <p className="text-gray-500 dark:text-gray-400">Inválidos</p>
+              <p className="font-semibold text-yellow-700 dark:text-yellow-400">{summary.invalidos}</p>
             </div>
             <div>
-              <p className="text-gray-500">Errores BD</p>
-              <p className="font-semibold text-red-700">{summary.errores}</p>
+              <p className="text-gray-500 dark:text-gray-400">Errores BD</p>
+              <p className="font-semibold text-red-700 dark:text-red-400">{summary.errores}</p>
             </div>
           </div>
         </div>

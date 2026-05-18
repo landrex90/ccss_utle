@@ -162,12 +162,12 @@ export async function POST(request: NextRequest) {
     if (!registro && row.telefono) {
       const telNorm = normalizarTelefono(row.telefono)
       if (telNorm) {
-        const { data } = await supabase
+        const { data: phoneData } = await supabase
           .from('registros')
           .select('id_registro, estado, canal_completado')
           .ilike('telefono', `%${telNorm}`)
-          .single()
-        registro = data
+          .limit(1)
+        registro = phoneData?.[0] ?? null
       }
     }
 

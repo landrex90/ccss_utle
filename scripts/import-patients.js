@@ -127,7 +127,7 @@ async function main() {
     if (!validarFila(row, num)) { invalidos++; continue }
 
     const token         = crypto.randomUUID()
-    const linkExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const linkExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
     const idRegistro    = row.id_registro || `REG-${String(i + 1).padStart(6, '0')}`
 
     const registro = {

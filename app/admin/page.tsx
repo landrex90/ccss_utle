@@ -75,8 +75,8 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Resumen general de campañas activas</p>
+        <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Dashboard</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Resumen general de campañas activas</p>
       </div>
 
       {/* Summary cards */}
@@ -95,17 +95,17 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Campaign table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="font-medium text-gray-700">Por campaña</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="font-medium text-gray-700 dark:text-gray-200">Por campaña</h2>
         </div>
         {campanaSummary.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-gray-400">No hay registros aún.</p>
+          <p className="px-5 py-8 text-center text-sm text-gray-400 dark:text-gray-500">No hay registros aún.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+                <tr className="bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
                   <th className="text-left px-5 py-3 font-medium">Campaña</th>
                   <th className="text-right px-4 py-3 font-medium">Total</th>
                   <th className="text-right px-4 py-3 font-medium">Pendiente</th>
@@ -117,20 +117,20 @@ export default async function AdminDashboard() {
                   <th className="text-right px-4 py-3 font-medium">Otro</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {campanaSummary.map(c => (
-                  <tr key={c.campana_id} className="hover:bg-gray-50">
-                    <td className="px-5 py-3 font-mono text-xs text-gray-700 max-w-xs truncate">
+                  <tr key={c.campana_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-5 py-3 font-mono text-xs text-gray-700 dark:text-gray-300 max-w-xs truncate">
                       {c.campana_id}
                     </td>
-                    <td className="text-right px-4 py-3 font-medium text-gray-800">{c.total}</td>
-                    <td className="text-right px-4 py-3 text-yellow-700">{c.pendiente || '—'}</td>
-                    <td className="text-right px-4 py-3 text-green-700">{c.activo || '—'}</td>
-                    <td className="text-right px-4 py-3 text-gray-500">{c.no_autorizo || '—'}</td>
-                    <td className="text-right px-4 py-3 text-gray-500">{c.no_verificado || '—'}</td>
-                    <td className="text-right px-4 py-3 text-gray-500">{c.info_incorrecta || '—'}</td>
-                    <td className="text-right px-4 py-3 text-gray-500">{c.depurado || '—'}</td>
-                    <td className="text-right px-4 py-3 text-gray-400">{c.otro || '—'}</td>
+                    <td className="text-right px-4 py-3 font-medium text-gray-800 dark:text-gray-100">{c.total}</td>
+                    <td className="text-right px-4 py-3 text-yellow-700 dark:text-yellow-400">{c.pendiente || '—'}</td>
+                    <td className="text-right px-4 py-3 text-green-700 dark:text-green-400">{c.activo || '—'}</td>
+                    <td className="text-right px-4 py-3 text-gray-500 dark:text-gray-400">{c.no_autorizo || '—'}</td>
+                    <td className="text-right px-4 py-3 text-gray-500 dark:text-gray-400">{c.no_verificado || '—'}</td>
+                    <td className="text-right px-4 py-3 text-gray-500 dark:text-gray-400">{c.info_incorrecta || '—'}</td>
+                    <td className="text-right px-4 py-3 text-gray-500 dark:text-gray-400">{c.depurado || '—'}</td>
+                    <td className="text-right px-4 py-3 text-gray-400 dark:text-gray-500">{c.otro || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -152,15 +152,15 @@ function StatCard({
   color: 'blue' | 'yellow' | 'green' | 'gray'
 }) {
   const colorClass = {
-    blue: 'text-[#005d8f]',
-    yellow: 'text-yellow-600',
-    green: 'text-green-600',
-    gray: 'text-gray-500',
+    blue: 'text-[#005d8f] dark:text-[#0080c0]',
+    yellow: 'text-yellow-600 dark:text-yellow-400',
+    green: 'text-green-600 dark:text-green-400',
+    gray: 'text-gray-500 dark:text-gray-400',
   }[color]
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-5 py-4">
-      <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4">
+      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
       <p className={`text-3xl font-bold mt-1 ${colorClass}`}>{value.toLocaleString()}</p>
     </div>
   )
@@ -170,10 +170,10 @@ function QuickAction({ href, label, icon }: { href: string; label: string; icon:
   return (
     <Link
       href={href}
-      className="bg-white rounded-lg shadow-sm border border-gray-200 px-5 py-4 flex items-center gap-3 hover:border-[#005d8f] hover:shadow-md transition-all group"
+      className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center gap-3 hover:border-[#005d8f] dark:hover:border-[#0080c0] hover:shadow-md transition-all group"
     >
-      <span className="text-2xl text-[#005d8f] group-hover:scale-110 transition-transform">{icon}</span>
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <span className="text-2xl text-[#005d8f] dark:text-[#0080c0] group-hover:scale-110 transition-transform">{icon}</span>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
     </Link>
   )
 }

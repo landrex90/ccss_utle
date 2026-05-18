@@ -35,7 +35,7 @@ function parseCSV(content: string): Record<string, string | null>[] {
     .replace(/\r/g, '\n')
     .trim()
     .split('\n')
-  const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim())
+  const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim().toLowerCase())
   return lines
     .slice(1)
     .filter(l => l.trim())
