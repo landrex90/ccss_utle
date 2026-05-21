@@ -11,7 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 hc-page">
       {/* Top nav */}
-      <header className="bg-[#005d8f] text-white shadow-md">
+      <header className="bg-[#004B83] text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center gap-2">
           <div className="flex items-center gap-3">
             <Image
@@ -30,25 +30,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="flex items-center flex-wrap gap-1 text-sm sm:ml-auto">
             <Link
               href="/admin"
-              className="px-3 py-1.5 rounded hover:bg-[#004268] transition-colors"
+              className="px-3 py-1.5 rounded hover:bg-[#003668] transition-colors"
             >
               Dashboard
             </Link>
             <Link
               href="/admin/campanas"
-              className="px-3 py-1.5 rounded hover:bg-[#004268] transition-colors"
+              className="px-3 py-1.5 rounded hover:bg-[#003668] transition-colors"
             >
               Campañas
             </Link>
             <Link
               href="/admin/importar"
-              className="px-3 py-1.5 rounded hover:bg-[#004268] transition-colors"
+              className="px-3 py-1.5 rounded hover:bg-[#003668] transition-colors"
             >
               Importar
             </Link>
             <Link
               href="/admin/resultados"
-              className="px-3 py-1.5 rounded hover:bg-[#004268] transition-colors"
+              className="px-3 py-1.5 rounded hover:bg-[#003668] transition-colors"
             >
               Resultados
             </Link>

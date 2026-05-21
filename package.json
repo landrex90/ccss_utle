@@ -25,6 +25,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
+    "docx": "^9.6.1",
     "eslint": "^8",
     "eslint-config-next": "^14.2.35",
     "netlify-cli": "^26.0.0",

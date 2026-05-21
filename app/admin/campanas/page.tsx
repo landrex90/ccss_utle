@@ -83,7 +83,7 @@ export default async function CampanasPage() {
                   </h2>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{campana.total} pacientes</p>
                 </div>
-                <div className="text-2xl font-bold text-[#005d8f] dark:text-[#0080c0]">{campana.total}</div>
+                <div className="text-2xl font-bold text-[#004B83] dark:text-[#0066aa]">{campana.total}</div>
               </div>
 
               <div className="px-5 py-3 flex flex-wrap gap-2">

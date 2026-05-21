@@ -190,6 +190,8 @@ export async function POST(request: NextRequest) {
                 row: rowNum,
                 id: idRegistro,
                 url,
+                correo: row.correo ?? null,
+                telefono: row.telefono ?? null,
                 ok: true,
               }) + '\n'
             )

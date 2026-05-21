@@ -47,7 +47,7 @@ export default function AdminLoginPage() {
             height={64}
             className="mb-3"
           />
-          <h1 className="text-xl font-semibold text-[#005d8f] dark:text-[#0080c0]">Panel COCO Tech</h1>
+          <h1 className="text-xl font-semibold text-[#004B83] dark:text-[#0066aa]">Panel COCO Tech</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">CCSS UTLE — Acceso interno</p>
         </div>
 
@@ -65,7 +65,7 @@ export default function AdminLoginPage() {
               autoFocus
               className="hc-input w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
                          bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                         focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0] focus:border-transparent"
+                         focus:outline-none focus:ring-2 focus:ring-[#004B83] dark:focus:ring-[#0066aa] focus:border-transparent"
               placeholder="Ingrese la contraseña"
             />
           </div>
@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#005d8f] hover:bg-[#004268] text-white font-medium py-2 px-4 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[#004B83] hover:bg-[#003668] text-white font-medium py-2 px-4 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>

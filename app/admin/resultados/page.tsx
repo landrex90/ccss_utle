@@ -72,7 +72,7 @@ export default function ResultadosPage() {
                     value={c}
                     checked={canal === c}
                     onChange={() => setCanal(c)}
-                    className="accent-[#005d8f]"
+                    className="accent-[#004B83]"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-200 capitalize">{c}</span>
                 </label>
@@ -92,7 +92,7 @@ export default function ResultadosPage() {
               onChange={e => setFile(e.target.files?.[0] ?? null)}
               className="hc-input block w-full text-sm text-gray-600 dark:text-gray-300
                          file:mr-3 file:py-1.5 file:px-4 file:rounded file:border-0
-                         file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#005d8f]
+                         file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#004B83]
                          dark:file:bg-gray-700 dark:file:text-blue-300
                          hover:file:bg-[#c8e3f0] dark:hover:file:bg-gray-600 cursor-pointer"
             />
@@ -111,7 +111,7 @@ export default function ResultadosPage() {
           <button
             type="submit"
             disabled={loading || !file}
-            className="bg-[#005d8f] hover:bg-[#004268] text-white font-medium py-2 px-6 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[#004B83] hover:bg-[#003668] text-white font-medium py-2 px-6 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Procesando…' : 'Importar resultados'}
           </button>

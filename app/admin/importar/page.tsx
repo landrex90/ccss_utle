@@ -6,6 +6,8 @@ interface LogEntry {
   row?: number
   id?: string
   url?: string
+  correo?: string | null
+  telefono?: string | null
   ok?: boolean
   error?: string
   done?: boolean
@@ -94,6 +96,22 @@ export default function ImportarPage() {
   const successCount = log.filter(e => e.ok).length
   const errorCount = log.filter(e => e.ok === false).length
 
+  function downloadCsv() {
+    const rows = log.filter(e => e.ok && e.id && e.url)
+    const lines = ['id_registro,telefono,correo,url']
+    for (const e of rows) {
+      const phone = e.telefono ?? ''
+      const email = e.correo ?? ''
+      lines.push(`${e.id},${phone},"${email}","${e.url}"`)
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `pacientes_urls_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(link.href)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -117,7 +135,7 @@ export default function ImportarPage() {
               onChange={e => setFile(e.target.files?.[0] ?? null)}
               className="block w-full text-sm text-gray-600 dark:text-gray-300
                          file:mr-3 file:py-1.5 file:px-4 file:rounded file:border-0
-                         file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#005d8f]
+                         file:text-sm file:font-medium file:bg-[#e6f2f8] file:text-[#004B83]
                          dark:file:bg-gray-700 dark:file:text-blue-300
                          hover:file:bg-[#c8e3f0] dark:hover:file:bg-gray-600 cursor-pointer"
             />
@@ -136,7 +154,7 @@ export default function ImportarPage() {
               onChange={e => setBaseUrl(e.target.value)}
               className="hc-input w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                         focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0]"
+                         focus:outline-none focus:ring-2 focus:ring-[#004B83] dark:focus:ring-[#0066aa]"
               placeholder="https://ccss-utle-preprod.netlify.app"
             />
           </div>
@@ -152,7 +170,7 @@ export default function ImportarPage() {
               onChange={e => setCampanaId(e.target.value)}
               className="hc-input w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
                          bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                         focus:outline-none focus:ring-2 focus:ring-[#005d8f] dark:focus:ring-[#0080c0]"
+                         focus:outline-none focus:ring-2 focus:ring-[#004B83] dark:focus:ring-[#0066aa]"
               placeholder="ej: 2026-05-01_HospMexico"
             />
           </div>
@@ -160,7 +178,7 @@ export default function ImportarPage() {
           <button
             type="submit"
             disabled={loading || !file}
-            className="bg-[#005d8f] hover:bg-[#004268] text-white font-medium py-2 px-6 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[#004B83] hover:bg-[#003668] text-white font-medium py-2 px-6 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Importando…' : 'Iniciar importación'}
           </button>
@@ -192,7 +210,7 @@ export default function ImportarPage() {
                 {entry.ok ? (
                   <span>
                     <span className="text-green-600 dark:text-green-400">✓</span>{' '}
-                    <span className="text-[#005d8f] dark:text-[#0080c0]">[{entry.id}]</span>{' '}
+                    <span className="text-[#004B83] dark:text-[#0066aa]">[{entry.id}]</span>{' '}
                     <span className="text-gray-500 dark:text-gray-400 break-all">{entry.url}</span>
                   </span>
                 ) : (
@@ -215,7 +233,17 @@ export default function ImportarPage() {
       {/* Summary */}
       {summary && (
         <div className="hc-surface bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-5 py-4">
-          <h3 className="font-medium text-green-800 dark:text-green-300 mb-2">Importación completada</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-medium text-green-800 dark:text-green-300">Importación completada</h3>
+            {successCount > 0 && (
+              <button
+                onClick={downloadCsv}
+                className="flex items-center gap-1.5 text-xs font-medium bg-[#004B83] hover:bg-[#003668] text-white px-3 py-1.5 rounded-md transition-colors"
+              >
+                ↓ Descargar CSV de URLs ({successCount})
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
               <p className="text-gray-500 dark:text-gray-400">Total filas</p>

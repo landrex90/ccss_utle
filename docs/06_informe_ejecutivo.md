@@ -62,7 +62,7 @@
 | Pendiente | Responsable CCSS | Impacto si se demora |
 |-----------|-----------------|---------------------|
 | Configuración DNS para correo `gm_utle_gelisespera@ccss.sa.cr` | TI CCSS (vía Ing. Mariam Carvajal) | Retrasa la primera campaña por correo |
-| Manual de marca institucional | UTLE | Ajustes menores de identidad visual |
+| ~~Manual de marca institucional~~ | ~~UTLE~~ | ✓ Recibido — pendiente revisión de ajustes |
 | Primer lote de pacientes en CSV | UTLE | Retrasa la prueba piloto |
 | Definición de política de retención de datos | UTLE / Dirección Jurídica | Necesaria antes de campaña real |
 | Cuentas de Google para acceso al dashboard | UTLE (Ing. Mariam Castillo) | Retrasa habilitación del monitoreo en tiempo real |

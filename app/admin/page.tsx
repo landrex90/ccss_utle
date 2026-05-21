@@ -152,7 +152,7 @@ function StatCard({
   color: 'blue' | 'yellow' | 'green' | 'gray'
 }) {
   const colorClass = {
-    blue: 'text-[#005d8f] dark:text-[#0080c0]',
+    blue: 'text-[#004B83] dark:text-[#0066aa]',
     yellow: 'text-yellow-600 dark:text-yellow-400',
     green: 'text-green-600 dark:text-green-400',
     gray: 'text-gray-500 dark:text-gray-400',
@@ -170,9 +170,9 @@ function QuickAction({ href, label, icon }: { href: string; label: string; icon:
   return (
     <Link
       href={href}
-      className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center gap-3 hover:border-[#005d8f] dark:hover:border-[#0080c0] hover:shadow-md transition-all group"
+      className="hc-surface bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-5 py-4 flex items-center gap-3 hover:border-[#004B83] dark:hover:border-[#0066aa] hover:shadow-md transition-all group"
     >
-      <span className="text-2xl text-[#005d8f] dark:text-[#0080c0] group-hover:scale-110 transition-transform">{icon}</span>
+      <span className="text-2xl text-[#004B83] dark:text-[#0066aa] group-hover:scale-110 transition-transform">{icon}</span>
       <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
     </Link>
   )

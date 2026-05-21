@@ -34,9 +34,9 @@
 
 | Registro | Tipo | URL |
 |----------|------|-----|
-| TEST-AZ-001 | Consulta | https://ccss-utle-preprod.netlify.app/utle?t=a3d46938-9136-414d-89ec-2f5362decfc1 |
-| TEST-AZ-002 | Cirugía | https://ccss-utle-preprod.netlify.app/utle?t=d49fc70e-052c-4278-a7f2-fb34c711206d |
-| TEST-AZ-003 | Procedimiento | https://ccss-utle-preprod.netlify.app/utle?t=17b16466-7b3d-4ee1-9a28-1798eb205b76 |
+| TEST-AZ-001 | Consulta | https://ccss-utle-preprod.netlify.app/utle?t=124ddcda-9589-4c32-b4d5-c18b44c606ae |
+| TEST-AZ-002 | Cirugía | https://ccss-utle-preprod.netlify.app/utle?t=59d5a637-a9f7-47bf-b01c-053f1f37ff9f |
+| TEST-AZ-003 | Procedimiento | https://ccss-utle-preprod.netlify.app/utle?t=30abc68b-c0af-44bc-8dd1-117fd4864cef |
 
 **Puntos a mostrar:**
 - [ ] Flujo completo de los 6 pasos (consulta, cirugía, procedimiento)
@@ -87,7 +87,7 @@ Documentos a revisar y validar en la reunión:
 | # | Pendiente | Responsable | Fecha límite | Estado |
 |---|-----------|-------------|-------------|--------|
 | 1 | Configuración DNS correo institucional | TI CCSS (vía Ing. Mariam Carvajal) | 29 mayo | En gestión |
-| 2 | Manual de marca CCSS | UTLE | 29 mayo | En espera |
+| 2 | Manual de marca CCSS | UTLE | 29 mayo | ✓ Recibido |
 | 3 | Número WhatsApp Business | UTLE | 29 mayo | En espera |
 | 4 | Primer lote CSV de pacientes | UTLE | 5 junio | Abierto |
 | 5 | Cuentas Google — acceso Looker Studio | UTLE (Ing. Castillo) | 28 mayo | Abierto |

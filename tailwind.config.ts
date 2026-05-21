@@ -11,14 +11,14 @@ const config: Config = {
     extend: {
       colors: {
         ccss: {
-          primary: '#005d8f',
-          dark: '#004268',
+          primary: '#004B83',
+          dark: '#003668',
           light: '#e6f2f8',
-          accent: '#0080c0',
+          accent: '#0066aa',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Arial', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         fadeIn: {
