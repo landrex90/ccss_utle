@@ -9,7 +9,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Contraseña requerida' }, { status: 400 })
     }
 
-    const adminPassword = process.env.ADMIN_PASSWORD ?? 'coco2026'
+    const adminPassword = process.env.ADMIN_PASSWORD
+    if (!adminPassword) {
+      return NextResponse.json({ error: 'Configuración de servidor incompleta' }, { status: 500 })
+    }
 
     if (password !== adminPassword) {
       return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 401 })

@@ -61,6 +61,8 @@ const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
 }
 
 const STEP_ANSWER_FIELDS: Partial<Record<number, (keyof FormAnswers)[]>> = {
+  1: ['paso_1_consentimiento'],
+  2: ['paso_2_verificacion', 'paso_2_intentos', 'verification_token'],
   3: ['paso_3_info_correcta'],
   4: ['paso_4_desea_continuar', 'motivo_retiro'],
   5: ['paso_5a_flexibilidad_centro', 'paso_5b_condiciones_asistir', 'paso_5b_motivo_no_asistir'],
@@ -136,7 +138,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     setFlowStep(prev as FlowStep)
   }
 
-  const canGoBack = isNumberStep(flowStep) && flowStep >= 4 && stepHistory.length > 1
+  const canGoBack = isNumberStep(flowStep) && flowStep >= 2 && stepHistory.length > 1
 
   // ── Auto-advance ─────────────────────────────────────────────
   function autoAdvance(value: string, callback: () => void) {
@@ -202,6 +204,16 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
 
   function handleIdentityFailed(intentos: number) {
     closeWithState('NO_VERIFICADO', { paso_2_verificacion: 'fallida', paso_2_intentos: intentos }, 2)
+  }
+
+  function goBackFromTransition() {
+    setAnswers(a => {
+      const updated = { ...a }
+      ;(STEP_ANSWER_FIELDS[4] ?? []).forEach(f => { delete updated[f] })
+      return updated
+    })
+    setCompletedAnswers(ca => ca.filter(e => e.step < 4))
+    setFlowStep(4)
   }
 
   // ── Step 3 ───────────────────────────────────────────────────
@@ -342,7 +354,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   if (flowStep === 'transition') {
     return (
       <div className="mt-8">
-        <ProgressBar currentStep={4} totalSteps={6} canGoBack={false} onBack={() => {}} />
+        <ProgressBar currentStep={4} totalSteps={6} canGoBack={true} onBack={goBackFromTransition} />
         <AnswersSummary entries={completedAnswers.filter(e => e.step <= 4)} />
         <div className="space-y-6 animate-fade-in">
           <div className="card dark:bg-gray-800 dark:border-gray-700 p-6 space-y-3">

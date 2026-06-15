@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Resolver token → id_registro + ultimos_4_asegurado (nunca expuesto al frontend)
     const { data: registro, error } = await supabase
       .from('registros')
-      .select('id_registro, ultimos_4_asegurado')
+      .select('id_registro, ultimos_4_asegurado, link_expires_at')
       .eq('token', token)
       .single()
 
@@ -32,12 +32,19 @@ export async function POST(request: NextRequest) {
 
     const { id_registro } = registro
 
-    // Contar intentos previos fallidos
+    // Calcular cuándo se emitió el token actual (link_expires_at − 3 días)
+    // Así, al refrescar el enlace el contador de intentos se reinicia automáticamente
+    const tokenIssuedAt = new Date(
+      new Date(registro.link_expires_at).getTime() - 3 * 24 * 60 * 60 * 1000
+    ).toISOString()
+
+    // Contar intentos fallidos solo desde la emisión del token vigente
     const { count } = await supabase
       .from('intentos_validacion')
       .select('*', { count: 'exact', head: true })
       .eq('id_registro', id_registro)
       .eq('exitoso', false)
+      .gte('created_at', tokenIssuedAt)
 
     const attemptsSoFar = count ?? 0
 

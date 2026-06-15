@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 const COOKIE_NAME = 'admin_session'
 
 export function getExpectedCookieValue(): string {
-  const password = process.env.ADMIN_PASSWORD ?? 'coco2026'
+  const password = process.env.ADMIN_PASSWORD ?? ''
   return Buffer.from(password).toString('base64')
 }
 

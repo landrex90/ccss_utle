@@ -36,6 +36,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const ESTADOS_VALIDOS = [
+      'ACTIVO', 'NO_AUTORIZO', 'NO_VERIFICADO',
+      'INFO_INCORRECTA', 'DEPURADO_RENUNCIA', 'NO_ASEGURADO', 'DEPURADO',
+    ]
+
+    if (body.estado_final && !ESTADOS_VALIDOS.includes(body.estado_final)) {
+      return NextResponse.json({ error: 'Estado final inválido' }, { status: 400 })
+    }
+
     const id_registro = reg.id_registro
 
     // Insertar respuesta
@@ -82,7 +91,8 @@ export async function POST(request: NextRequest) {
               ? { Authorization: `Bearer ${process.env.COCO_WEBHOOK_SECRET}` }
               : {}),
           },
-          body: JSON.stringify({ ...body, timestamp: new Date().toISOString() }),
+          const { verification_token: _vt, ...safeBody } = body
+          body: JSON.stringify({ ...safeBody, timestamp: new Date().toISOString() }),
         })
         if (!whRes.ok) {
           console.error(`Webhook forward failed: ${whRes.status} ${await whRes.text()}`)
