@@ -30,6 +30,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
     }
 
+    if (new Date(registro.link_expires_at) < new Date()) {
+      return NextResponse.json({ error: 'Este enlace ha expirado' }, { status: 410 })
+    }
+
     const { id_registro } = registro
 
     // Calcular cuándo se emitió el token actual (link_expires_at − 3 días)

@@ -75,7 +75,10 @@ export async function POST(request: NextRequest) {
     if (body.estado_final) {
       await supabase
         .from('registros')
-        .update({ estado: body.estado_final })
+        .update({
+          estado: body.estado_final,
+          ...(body.completado ? { encuesta_completada_at: new Date().toISOString() } : {}),
+        })
         .eq('id_registro', id_registro)
     }
 

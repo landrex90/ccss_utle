@@ -1,7 +1,24 @@
 import Image from 'next/image'
+import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { PatientPublicData } from '@/lib/types'
 import UTLEForm from '@/components/UTLEForm'
+
+function parseDevice(ua: string): string {
+  const mobile  = /Mobile|Android|iPhone|iPad/i.test(ua)
+  let os        = 'Desconocido'
+  if      (/Windows/i.test(ua))          os = 'Windows'
+  else if (/iPhone|iPad/i.test(ua))      os = 'iOS'
+  else if (/Android/i.test(ua))          os = 'Android'
+  else if (/Mac OS/i.test(ua))           os = 'macOS'
+  else if (/Linux/i.test(ua))            os = 'Linux'
+  let browser   = 'Desconocido'
+  if      (/Edg/i.test(ua))             browser = 'Edge'
+  else if (/Chrome/i.test(ua))          browser = 'Chrome'
+  else if (/Firefox/i.test(ua))         browser = 'Firefox'
+  else if (/Safari/i.test(ua))          browser = 'Safari'
+  return `${mobile ? 'Móvil' : 'Escritorio'} / ${os} / ${browser}`
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +77,7 @@ export default async function UTLEPage({ searchParams }: Props) {
   const { data: registro, error } = await supabase
     .from('registros')
     .select(
-      'nombre_paciente, tipo_atencion, nombre_servicio, especialidad, centro_medico, lateralidad, procedimiento, tipo_consulta, fecha_cita, hora_cita, link_expires_at, estado'
+      'nombre_paciente, tipo_atencion, nombre_servicio, especialidad, centro_medico, lateralidad, procedimiento, tipo_consulta, fecha_cita, hora_cita, link_expires_at, estado, primer_acceso_at'
     )
     .eq('token', t)
     .single()
@@ -75,6 +92,43 @@ export default async function UTLEPage({ searchParams }: Props) {
 
   if (registro.estado !== 'PENDIENTE') {
     return <ErrorPage message="Ya hemos recibido su respuesta. Muchas gracias por su participación. Si tiene consultas, comuníquese a:" />
+  }
+
+  // Registrar primer acceso: IP, dispositivo y geolocalización
+  if (!registro.primer_acceso_at) {
+    const headersList = headers()
+    const ip          = headersList.get('x-forwarded-for')?.split(',')[0].trim()
+                     ?? headersList.get('x-real-ip')
+                     ?? null
+    const ua          = headersList.get('user-agent') ?? null
+    const dispositivo = ua ? parseDevice(ua) : null
+
+    let pais: string | null = null
+    let ciudad: string | null = null
+    if (ip) {
+      try {
+        const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,city&lang=es`, {
+          cache: 'no-store',
+        }).then(r => r.ok ? r.json() : null)
+        pais   = geo?.country ?? null
+        ciudad = geo?.city    ?? null
+      } catch { /* no bloquear el flujo si la geo falla */ }
+    }
+
+    const ahora          = new Date()
+    const nuevaExpiracion = new Date(ahora.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()
+
+    await supabase
+      .from('registros')
+      .update({
+        primer_acceso_at:          ahora.toISOString(),
+        primer_acceso_ip:          ip,
+        primer_acceso_dispositivo: dispositivo,
+        primer_acceso_pais:        pais,
+        primer_acceso_ciudad:      ciudad,
+        link_expires_at:           nuevaExpiracion,
+      })
+      .eq('token', t)
   }
 
   const patient: PatientPublicData = {

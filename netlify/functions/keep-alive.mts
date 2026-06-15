@@ -9,7 +9,7 @@ export const handler = schedule("@daily", async () => {
 
   const { error } = await supabase
     .from("registros")
-    .select("id", { count: "exact", head: true })
+    .select("id_registro", { count: "exact", head: true })
 
   if (error) {
     console.error("[keep-alive] Supabase ping failed:", error.message)
