@@ -10,7 +10,7 @@
 
 La aplicación tiene una arquitectura de seguridad sólida: service key solo en server-side, `ultimos_4_asegurado` nunca expuesto al frontend, RLS habilitado en todas las tablas, cookies httpOnly, whitelist de estados.
 
-**Estado tras dos iteraciones de corrección:** todos los hallazgos **CRÍTICOS y ALTOS están resueltos y verificados**. La app está lista para producción desde el punto de vista de seguridad, con la salvedad de habilitar RLS en `admin_login_attempts` (N-1) y configurar `ADMIN_SESSION_SECRET` en Netlify. Quedan hallazgos MEDIOS/BAJOS diferidos a la siguiente iteración (calidad y robustez, no bloqueantes).
+**Estado tras dos iteraciones de corrección:** todos los hallazgos **CRÍTICOS y ALTOS están resueltos y verificados**. Resultado final: **15 resueltos + 2 parciales + 3 diferidos** sobre 20 hallazgos. La app está lista para producción desde el punto de vista de seguridad. Pendiente operativo: configurar `ADMIN_SESSION_SECRET` en Netlify (prod y preprod) para habilitar rotación de sesiones sin cambiar contraseña.
 
 ### Tablero de estado
 
@@ -675,10 +675,10 @@ O mejor aún: normalizar el teléfono al importar pacientes y usar `=` en vez de
 
 ## Veredicto
 
-**Aprobado para producción (seguridad).** Tras dos iteraciones de corrección, los 3 hallazgos CRÍTICOS y los 6 ALTOS quedaron resueltos y verificados, junto con la mayoría de los MEDIOS/BAJOS. El bloque de autenticación admin (cookie HMAC + comparación timing-safe + rate limiting) está correctamente implementado.
+**Aprobado para producción (seguridad).** Resultado: **15/20 resueltos, 2/20 parciales, 3/20 diferidos**.
 
-**Antes del deploy, dos acciones de bajo esfuerzo recomendadas:**
-1. Habilitar RLS en `admin_login_attempts` (N-1).
-2. Configurar `ADMIN_SESSION_SECRET` en las env vars de Netlify (prod y preprod).
+Los 3 CRÍTICOS y los 6 ALTOS están resueltos y verificados. El bloque de autenticación admin (cookie HMAC + `timingSafeEqual` + rate limiting por IP) está correctamente implementado.
+
+**Único pendiente que afecta seguridad:** configurar `ADMIN_SESSION_SECRET` en Netlify (Site settings → Environment variables, contextos prod y preprod). Sin él, C-2 sigue siendo seguro (HMAC no reversible), pero no se puede rotar sesiones activas sin cambiar la contraseña.
 
 **Diferido a la siguiente iteración (calidad/robustez, no bloqueante):** M-2 (import-results), M-4, M-5 (CAMPOS_RESPUESTA), M-6, B-3.
