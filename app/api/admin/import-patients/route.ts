@@ -97,12 +97,27 @@ export async function POST(request: NextRequest) {
   }
 
   const file = formData.get('file') as File | null
-  const baseUrl = (formData.get('baseUrl') as string | null) ?? 'https://ccss-utle-preprod.netlify.app'
+  const ALLOWED_BASE_URLS = [
+    'https://ccss-utle.netlify.app',
+    'https://ccss-utle-preprod.netlify.app',
+  ]
+  const rawBaseUrl = (formData.get('baseUrl') as string | null) ?? ''
+  const baseUrl = ALLOWED_BASE_URLS.includes(rawBaseUrl)
+    ? rawBaseUrl
+    : 'https://ccss-utle-preprod.netlify.app'
   const campanaId = (formData.get('campanaId') as string | null) || null
 
   if (!file) {
     return new Response(JSON.stringify({ error: 'Archivo CSV requerido' }), {
       status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const MAX_CSV_BYTES = 5 * 1024 * 1024 // 5 MB
+  if (file.size > MAX_CSV_BYTES) {
+    return new Response(JSON.stringify({ error: 'El archivo CSV no puede superar 5 MB' }), {
+      status: 413,
       headers: { 'Content-Type': 'application/json' },
     })
   }

@@ -73,19 +73,23 @@ export async function POST(request: NextRequest) {
 
     // Actualizar estado del registro
     if (body.estado_final) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('registros')
         .update({
           estado: body.estado_final,
           ...(body.completado ? { encuesta_completada_at: new Date().toISOString() } : {}),
         })
         .eq('id_registro', id_registro)
+      if (updateError) {
+        console.error('Error updating estado registro:', updateError)
+      }
     }
 
     // Reenviar webhook a COCO si está configurado
     const webhookUrl = process.env.COCO_WEBHOOK_URL
-    if (webhookUrl) {
+    if (webhookUrl && webhookUrl.startsWith('https://')) {
       try {
+        const { verification_token: _vt, ...safeBody } = body
         const whRes = await fetch(webhookUrl, {
           method: 'POST',
           headers: {
@@ -94,7 +98,6 @@ export async function POST(request: NextRequest) {
               ? { Authorization: `Bearer ${process.env.COCO_WEBHOOK_SECRET}` }
               : {}),
           },
-          const { verification_token: _vt, ...safeBody } = body
           body: JSON.stringify({ ...safeBody, timestamp: new Date().toISOString() }),
         })
         if (!whRes.ok) {
