@@ -1,14 +1,17 @@
 export type TipoAtencion = 'consulta' | 'cirugia' | 'procedimiento'
 
-export type EstadoFinal =
-  | 'NO_AUTORIZO'
-  | 'NO_VERIFICADO'
-  | 'INFO_INCORRECTA'
-  | 'DEPURADO_YA_ATENDIDO'
-  | 'DEPURADO_YA_PROGRAMADO'
-  | 'DEPURADO_RENUNCIA'
-  | 'NO_ASEGURADO'
-  | 'ACTIVO'
+export const ESTADOS_VALIDOS = [
+  'NO_AUTORIZO',
+  'NO_VERIFICADO',
+  'INFO_INCORRECTA',
+  'DEPURADO_YA_ATENDIDO',
+  'DEPURADO_YA_PROGRAMADO',
+  'DEPURADO_RENUNCIA',
+  'NO_ASEGURADO',
+  'ACTIVO',
+] as const
+
+export type EstadoFinal = typeof ESTADOS_VALIDOS[number]
 
 export interface PatientPublicData {
   nombre_paciente: string

@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createClient()
-    const ip = request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip') ?? null
+    const ip = request.headers.get('x-nf-client-connection-ip')
+            ?? request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+            ?? null
 
     // Resolver token → id_registro + ultimos_4_asegurado (nunca expuesto al frontend)
     const { data: registro, error } = await supabase

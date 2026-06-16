@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { COOKIE_NAME, getExpectedCookieValue } from '@/lib/admin-auth'
+import { createClient } from '@/lib/supabase/server'
+import crypto from 'crypto'
+
+const MAX_FAILED_ATTEMPTS = 5
+const WINDOW_MINUTES       = 15
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +19,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Configuración de servidor incompleta' }, { status: 500 })
     }
 
-    if (password !== adminPassword) {
+    const ip = request.headers.get('x-nf-client-connection-ip')
+            ?? request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+            ?? 'unknown'
+
+    const supabase    = createClient()
+    const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString()
+
+    const { count: recentFails } = await supabase
+      .from('admin_login_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('ip_address', ip)
+      .gte('created_at', windowStart)
+
+    if ((recentFails ?? 0) >= MAX_FAILED_ATTEMPTS) {
+      return NextResponse.json(
+        { error: `Demasiados intentos fallidos. Espere ${WINDOW_MINUTES} minutos.` },
+        { status: 429 }
+      )
+    }
+
+    const a     = Buffer.from(password)
+    const b     = Buffer.from(adminPassword)
+    const match = a.length === b.length && crypto.timingSafeEqual(a, b)
+
+    if (!match) {
+      await supabase.from('admin_login_attempts').insert({ ip_address: ip })
       return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 401 })
     }
 

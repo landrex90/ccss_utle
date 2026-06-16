@@ -94,28 +94,21 @@ export default async function UTLEPage({ searchParams }: Props) {
     return <ErrorPage message="Ya hemos recibido su respuesta. Muchas gracias por su participación. Si tiene consultas, comuníquese a:" />
   }
 
-  // Registrar primer acceso: IP, dispositivo y geolocalización
+  // Registrar primer acceso: IP, dispositivo y geolocalización (solo en el primer acceso)
   if (!registro.primer_acceso_at) {
     const headersList = headers()
-    const ip          = headersList.get('x-forwarded-for')?.split(',')[0].trim()
-                     ?? headersList.get('x-real-ip')
+    // x-nf-client-connection-ip es el header confiable de Netlify (no falsificable)
+    const ip          = headersList.get('x-nf-client-connection-ip')
+                     ?? headersList.get('x-forwarded-for')?.split(',')[0].trim()
                      ?? null
     const ua          = headersList.get('user-agent') ?? null
     const dispositivo = ua ? parseDevice(ua) : null
 
-    let pais: string | null = null
-    let ciudad: string | null = null
-    if (ip) {
-      try {
-        const geo = await fetch(`http://ip-api.com/json/${ip}?fields=country,city&lang=es`, {
-          cache: 'no-store',
-        }).then(r => r.ok ? r.json() : null)
-        pais   = geo?.country ?? null
-        ciudad = geo?.city    ?? null
-      } catch { /* no bloquear el flujo si la geo falla */ }
-    }
+    // Netlify inyecta geo en headers propios — sin llamadas a terceros ni HTTP
+    const pais   = headersList.get('x-country-code') ?? null
+    const ciudad = headersList.get('x-city')         ?? null
 
-    const ahora          = new Date()
+    const ahora           = new Date()
     const nuevaExpiracion = new Date(ahora.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString()
 
     await supabase
@@ -129,6 +122,7 @@ export default async function UTLEPage({ searchParams }: Props) {
         link_expires_at:           nuevaExpiracion,
       })
       .eq('token', t)
+      .is('primer_acceso_at', null)  // idempotente: solo actualiza si aún no hay primer acceso
   }
 
   const patient: PatientPublicData = {

@@ -62,9 +62,12 @@ interface RowRecord {
   [key: string]: string | null
 }
 
+const ESTADOS_CANAL_VALIDOS = ['completado', 'no_respondio', 'rechazado', 'error', 'no_contesta'] as const
+
 function buildUpdate(canal: Canal, row: RowRecord): Record<string, unknown> {
   const ahora = new Date().toISOString()
-  const estado = (row.estado_canal ?? '').toLowerCase()
+  const rawEstado = (row.estado_canal ?? '').toLowerCase()
+  const estado = (ESTADOS_CANAL_VALIDOS as readonly string[]).includes(rawEstado) ? rawEstado : 'no_respondio'
   const update: Record<string, unknown> = {}
 
   if (canal === 'whatsapp') {
