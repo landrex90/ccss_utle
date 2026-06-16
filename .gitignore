@@ -15,6 +15,9 @@ build/
 .env.test.local
 .env.production.local
 
+# Secretos para subir a Netlify (nunca commitear)
+_netlify-secrets/
+
 # Misc
 .DS_Store
 *.pem
