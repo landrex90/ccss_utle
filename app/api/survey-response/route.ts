@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { FormAnswers } from '@/lib/types'
+import { FormAnswers, ESTADOS_VALIDOS } from '@/lib/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,10 +13,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient()
 
+    const MAX_ATTEMPTS = 3
+
     // Resolver token → registro (nunca viaja en la URL)
     const { data: reg, error: regError } = await supabase
       .from('registros')
-      .select('id_registro, verification_token, verification_token_expires_at')
+      .select('id_registro, verification_token, verification_token_expires_at, link_expires_at')
       .eq('token', token)
       .single()
 
@@ -34,14 +36,31 @@ export async function POST(request: NextRequest) {
       if (!reg.verification_token_expires_at || new Date(reg.verification_token_expires_at) < new Date()) {
         return NextResponse.json({ error: 'La sesión de verificación ha expirado' }, { status: 403 })
       }
+    } else {
+      // A-4: validaciones server-side para estados que omiten verificación de identidad
+      if (body.estado_final === 'NO_AUTORIZO') {
+        if (body.paso_1_consentimiento !== 'no_autorizo') {
+          return NextResponse.json({ error: 'Datos de paso 1 incoherentes' }, { status: 400 })
+        }
+      }
+      if (body.estado_final === 'NO_VERIFICADO') {
+        // Confirmar que los intentos están realmente agotados en BD
+        const tokenIssuedAt = new Date(
+          new Date(reg.link_expires_at).getTime() - 3 * 24 * 60 * 60 * 1000
+        ).toISOString()
+        const { count } = await supabase
+          .from('intentos_validacion')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_registro', reg.id_registro)
+          .eq('exitoso', false)
+          .gte('created_at', tokenIssuedAt)
+        if ((count ?? 0) < MAX_ATTEMPTS) {
+          return NextResponse.json({ error: 'Verificación no bloqueada' }, { status: 403 })
+        }
+      }
     }
 
-    const ESTADOS_VALIDOS = [
-      'ACTIVO', 'NO_AUTORIZO', 'NO_VERIFICADO',
-      'INFO_INCORRECTA', 'DEPURADO_RENUNCIA', 'NO_ASEGURADO', 'DEPURADO',
-    ]
-
-    if (body.estado_final && !ESTADOS_VALIDOS.includes(body.estado_final)) {
+    if (body.estado_final && !(ESTADOS_VALIDOS as readonly string[]).includes(body.estado_final)) {
       return NextResponse.json({ error: 'Estado final inválido' }, { status: 400 })
     }
 

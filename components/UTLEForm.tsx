@@ -69,12 +69,21 @@ const STEP_ANSWER_FIELDS: Partial<Record<number, (keyof FormAnswers)[]>> = {
   6: ['paso_6_medio_contacto'],
 }
 
-async function submitResponse(answers: FormAnswers) {
-  await fetch('/api/survey-response', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(answers),
-  })
+async function submitResponse(answers: FormAnswers): Promise<{ ok: boolean }> {
+  try {
+    const controller = new AbortController()
+    const timeout    = setTimeout(() => controller.abort(), 15_000)
+    const res = await fetch('/api/survey-response', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(answers),
+      signal:  controller.signal,
+    })
+    clearTimeout(timeout)
+    return { ok: res.ok }
+  } catch {
+    return { ok: false }
+  }
 }
 
 async function authorizeStep(
@@ -166,7 +175,11 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
       completado:    true,
       paso_abandono: estado === 'ACTIVO' ? null : paso,
     }
-    await submitResponse(final)
+    const result = await submitResponse(final)
+    if (!result.ok) {
+      setGateError('No fue posible guardar su respuesta. Por favor intente nuevamente o comuníquese a: ' + CONTACT_EMAIL)
+      return
+    }
     setClosingData(CLOSING_DATA[estado])
     setFlowStep('closing')
   }, [answers])
@@ -307,9 +320,14 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
   // ── Summary confirm & submit ─────────────────────────────────
   async function handleFinalConfirm() {
     setSubmitting(true)
+    setGateError(null)
     const final: FormAnswers = { ...answers, estado_final: 'ACTIVO', completado: true, paso_abandono: null }
-    await submitResponse(final)
+    const result = await submitResponse(final)
     setSubmitting(false)
+    if (!result.ok) {
+      setGateError('No fue posible guardar su respuesta. Por favor intente nuevamente o comuníquese a: ' + CONTACT_EMAIL)
+      return
+    }
     setClosingData(CLOSING_DATA.ACTIVO)
     setFlowStep('closing')
   }
