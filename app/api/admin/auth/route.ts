@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { COOKIE_NAME, getExpectedCookieValue } from '@/lib/admin-auth'
+import { COOKIE_NAME, getExpectedCookieValue, validateOrigin } from '@/lib/admin-auth'
 import { createClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 
@@ -7,6 +7,10 @@ const MAX_FAILED_ATTEMPTS = 5
 const WINDOW_MINUTES       = 15
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: 'Origen no permitido' }, { status: 403 })
+  }
+
   try {
     const { password } = await request.json()
 

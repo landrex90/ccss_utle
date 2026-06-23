@@ -4,6 +4,21 @@ import crypto from 'crypto'
 
 const COOKIE_NAME = 'admin_session'
 
+const ALLOWED_ORIGINS = new Set([
+  'https://ccss-utle-prod.netlify.app',
+  'https://ccss-utle-preprod.netlify.app',
+  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []),
+])
+
+// Returns true when the request comes from an allowed origin.
+// Requests without an Origin header (server-to-server, curl) are allowed
+// because they cannot carry session cookies set by the browser.
+export function validateOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin')
+  if (!origin) return true
+  return ALLOWED_ORIGINS.has(origin)
+}
+
 // Node.js crypto is used here (not Web Crypto) because API Routes run on the
 // Node.js runtime. middleware.ts uses crypto.subtle (Web Crypto) because it
 // runs on Edge Runtime where Node.js built-ins are unavailable. Both must

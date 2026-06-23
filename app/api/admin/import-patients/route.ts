@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { validateAdminSession } from '@/lib/admin-auth'
+import { validateAdminSession, validateOrigin } from '@/lib/admin-auth'
 import { createClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
 
@@ -79,6 +79,12 @@ function validarFila(row: RowRecord): string[] {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return new Response(JSON.stringify({ error: 'Origen no permitido' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
   if (!validateAdminSession(request)) {
     return new Response(JSON.stringify({ error: 'No autorizado' }), {
       status: 401,

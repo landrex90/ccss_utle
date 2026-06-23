@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validateAdminSession } from '@/lib/admin-auth'
+import { validateAdminSession, validateOrigin } from '@/lib/admin-auth'
 import { createClient } from '@/lib/supabase/server'
 import * as XLSX from 'xlsx'
 import {
@@ -58,6 +58,9 @@ function estadoDesdeRespuesta(paso4: string | null): string {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) {
+    return NextResponse.json({ error: 'Origen no permitido' }, { status: 403 })
+  }
   if (!validateAdminSession(request)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
