@@ -55,7 +55,13 @@ function normalizarTelefono(tel: string | null): string | null {
   return tel.replace(/[\s\-\+]/g, '').replace(/^506/, '').slice(-8)
 }
 
-// ── Build update object per canal ─────────────────────────────────────────────
+// ── Map paso_4 answer to registro estado ─────────────────────────────────────
+function estadoDesdeRespuesta(paso4: string | null): string {
+  if (paso4 === 'no_ya_no_deseo') return 'DEPURADO_RENUNCIA'
+  if (paso4 === 'no_asegurado')   return 'NO_ASEGURADO'
+  return 'ACTIVO'
+}
+
 type Canal = 'whatsapp' | 'llamada'
 
 interface RowRecord {
@@ -64,6 +70,7 @@ interface RowRecord {
 
 const ESTADOS_CANAL_VALIDOS = ['completado', 'no_respondio', 'rechazado', 'error', 'no_contesta'] as const
 
+// ── Build registros update ────────────────────────────────────────────────────
 function buildUpdate(canal: Canal, row: RowRecord): Record<string, unknown> {
   const ahora = new Date().toISOString()
   const rawEstado = (row.estado_canal ?? '').toLowerCase()
@@ -71,13 +78,16 @@ function buildUpdate(canal: Canal, row: RowRecord): Record<string, unknown> {
   const update: Record<string, unknown> = {}
 
   if (canal === 'whatsapp') {
-    if (row.enviado_at)   update.whatsapp_enviado_at   = row.enviado_at
-    if (row.respondio_at) update.whatsapp_respondio_at = row.respondio_at
-    update.whatsapp_estado = estado || 'no_respondio'
+    if (row.enviado_at)        update.whatsapp_enviado_at   = row.enviado_at
+    if (row.respondio_at)      update.whatsapp_respondio_at = row.respondio_at
+    if (row.campana_id)        update.whatsapp_campana_id   = row.campana_id
+    if (row.error)             update.whatsapp_error        = row.error
+    update.whatsapp_estado = estado
     if (estado === 'completado') {
       update.whatsapp_entregado_at = row.enviado_at || ahora
       update.canal_completado = 'whatsapp'
       update.canal_actual     = 'completado'
+      update.estado           = estadoDesdeRespuesta(row.paso_4_desea_continuar)
     } else {
       update.canal_actual = 'llamada'
     }
@@ -88,29 +98,41 @@ function buildUpdate(canal: Canal, row: RowRecord): Record<string, unknown> {
     if (row.contestado_at) update.llamada_contestada_at = row.contestado_at
     if (row.completado_at) update.llamada_completada_at = row.completado_at
     if (row.intentos)      update.llamada_intentos      = parseInt(row.intentos) || 1
-    update.llamada_estado = estado || 'no_respondio'
+    if (row.campana_id)    update.llamada_campana_id    = row.campana_id
+    if (row.error)         update.llamada_error         = row.error
+    update.llamada_estado = estado
     if (estado === 'completado') {
       update.canal_completado = 'llamada'
       update.canal_actual     = 'completado'
+      update.estado           = estadoDesdeRespuesta(row.paso_4_desea_continuar)
     } else {
-      update.canal_actual = 'correo'
+      update.canal_actual = 'agotado'
     }
   }
 
-  const CAMPOS_RESPUESTA = [
-    'paso_4_desea_continuar', 'paso_4_motivo_retiro',
-    'paso_5a_acepta_otro_centro', 'paso_5b_puede_asistir',
-    'paso_5b_motivo_no_asistir', 'paso_6_preferencia_contacto',
-  ]
-  for (const campo of CAMPOS_RESPUESTA) {
-    if (row[campo]) update[campo] = row[campo]
-  }
-
-  if (estado === 'completado') {
-    update.estado = 'ACTIVO'
-  }
-
   return update
+}
+
+// ── Build respuestas insert (only when completado) ───────────────────────────
+function buildRespuesta(canal: Canal, idRegistro: string, row: RowRecord): Record<string, unknown> | null {
+  const rawEstado = (row.estado_canal ?? '').toLowerCase()
+  if (rawEstado !== 'completado') return null
+
+  const respuesta: Record<string, unknown> = {
+    id_registro:  idRegistro,
+    canal,
+    completado:   true,
+    estado_final: estadoDesdeRespuesta(row.paso_4_desea_continuar),
+  }
+
+  if (row.paso_4_desea_continuar)      respuesta.paso_4_desea_continuar      = row.paso_4_desea_continuar
+  if (row.motivo_retiro)               respuesta.motivo_retiro               = row.motivo_retiro
+  if (row.paso_5a_flexibilidad_centro) respuesta.paso_5a_flexibilidad_centro = row.paso_5a_flexibilidad_centro
+  if (row.paso_5b_condiciones_asistir) respuesta.paso_5b_condiciones_asistir = row.paso_5b_condiciones_asistir
+  if (row.paso_5b_motivo_no_asistir)   respuesta.paso_5b_motivo_no_asistir   = row.paso_5b_motivo_no_asistir
+  if (row.paso_6_medio_contacto)       respuesta.paso_6_medio_contacto       = row.paso_6_medio_contacto
+
+  return respuesta
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -197,9 +219,23 @@ export async function POST(request: NextRequest) {
     if (dbError) {
       errores++
       detalles.push(`Fila ${rowNum}: [${registro.id_registro}] error — ${dbError.message}`)
-    } else {
-      actualizados++
+      continue
     }
+
+    // Insert into respuestas when the patient completed the flow
+    const respuesta = buildRespuesta(canal as Canal, registro.id_registro, row)
+    if (respuesta) {
+      const { error: respuestaError } = await supabase
+        .from('respuestas')
+        .insert(respuesta)
+      if (respuestaError) {
+        detalles.push(
+          `Fila ${rowNum}: [${registro.id_registro}] actualizado pero respuesta no guardada — ${respuestaError.message}`
+        )
+      }
+    }
+
+    actualizados++
   }
 
   return NextResponse.json({

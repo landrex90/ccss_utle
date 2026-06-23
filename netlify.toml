@@ -1,3 +1,20 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# CCSS UTLE — Netlify deploy config
+#
+# TWO SEPARATE NETLIFY SITES (not branch deploys of one site):
+#   Preprod: ccss-utle-preprod  (site ID: 5788c4cc-9e11-4bf2-be8e-b1488e1eda36)
+#            linked to branch: develop
+#            Supabase: dutextncxyurphzwpfro
+#
+#   Prod:    ccss-utle           (site ID: ca1764d8-b395-4335-bd89-fd252d5473e5)
+#            linked to branch: main
+#            Supabase: yknqcfyptjvpfahfdwch
+#
+# Each site has its own set of env vars in the Netlify UI. They are NOT shared.
+# ADMIN_SESSION_SECRET must be different between sites — rotating it logs out
+# all active admin sessions for that site.
+# ──────────────────────────────────────────────────────────────────────────────
+
 [build]
   command = "npm run build"
   publish = ".next"

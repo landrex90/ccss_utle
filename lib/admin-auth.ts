@@ -4,9 +4,15 @@ import crypto from 'crypto'
 
 const COOKIE_NAME = 'admin_session'
 
-// Computes HMAC-SHA256 of the password using ADMIN_SESSION_SECRET.
-// The cookie never contains the password — only a cryptographic commitment.
-// Rotating ADMIN_SESSION_SECRET instantly invalidates all active sessions.
+// Node.js crypto is used here (not Web Crypto) because API Routes run on the
+// Node.js runtime. middleware.ts uses crypto.subtle (Web Crypto) because it
+// runs on Edge Runtime where Node.js built-ins are unavailable. Both must
+// produce identical HMAC output or logins will appear valid but then fail on
+// protected routes.
+//
+// Cookie value = HMAC-SHA256(ADMIN_SESSION_SECRET, ADMIN_PASSWORD) as hex.
+// The cookie never carries the password. Rotating ADMIN_SESSION_SECRET
+// invalidates all active sessions instantly.
 export function getExpectedCookieValue(): string {
   const password = process.env.ADMIN_PASSWORD ?? ''
   const secret   = process.env.ADMIN_SESSION_SECRET ?? password

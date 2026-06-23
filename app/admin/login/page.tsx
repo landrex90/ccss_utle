@@ -23,6 +23,10 @@ export default function AdminLoginPage() {
       })
 
       if (res.ok) {
+        // Full page navigation ensures the Set-Cookie header from /api/admin/auth
+        // is included in the next request. router.push() (RSC client navigation)
+        // skips the cookie — the admin route returns 200 but middleware redirects
+        // back to login because it never sees the cookie.
         window.location.href = '/admin'
       } else {
         const data = await res.json()

@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
   const file = formData.get('file') as File | null
   const ALLOWED_BASE_URLS = [
-    'https://ccss-utle.netlify.app',
+    'https://ccss-utle-prod.netlify.app',
     'https://ccss-utle-preprod.netlify.app',
   ]
   const rawBaseUrl = (formData.get('baseUrl') as string | null) ?? ''
@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
           id_registro:         idRegistro,
           nombre_paciente:     row.nombre_paciente!,
           numero_asegurado:    row.numero_asegurado!,
+          cedula_raw:          row.numero_asegurado!.replace(/[^0-9]/g, ''),
           telefono:            row.telefono            ?? null,
           correo:              row.correo!,
           especialidad:        row.especialidad        ?? null,
