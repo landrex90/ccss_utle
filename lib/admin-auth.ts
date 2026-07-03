@@ -5,6 +5,7 @@ import crypto from 'crypto'
 const COOKIE_NAME = 'admin_session'
 
 const ALLOWED_ORIGINS = new Set([
+  'https://ccss.cocoreservas.com',
   'https://ccss-utle-prod.netlify.app',
   'https://ccss-utle-preprod.netlify.app',
   ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : []),

@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
 
   const file = formData.get('file') as File | null
   const ALLOWED_BASE_URLS = [
+    'https://ccss.cocoreservas.com',
     'https://ccss-utle-prod.netlify.app',
     'https://ccss-utle-preprod.netlify.app',
   ]
