@@ -15,6 +15,12 @@
 # all active admin sessions for that site.
 # ──────────────────────────────────────────────────────────────────────────────
 
+[[redirects]]
+  from   = "/infografia/UTLE.png"
+  to     = "https://agendaton.s3.us-west-1.amazonaws.com/ccss/UTLE.png"
+  status = 301
+  force  = true
+
 [build]
   command = "npm run build"
   publish = ".next"
