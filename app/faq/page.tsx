@@ -8,10 +8,10 @@ export const metadata: Metadata = {
   robots: 'noindex, nofollow',
 }
 
-const CONTACT = 'gm_utle_gelisespera@ccss.sa.cr'
+const FORMS_URL = 'https://forms.office.com/Pages/ResponsePage.aspx?id=gQ7GKQY8lk6IXK54M95VSqvHqbMqisNFtIV8KyZJbMxUNE1GSTNCMkRWRkJOWDYzUk05T1hGT1ZBQy4u'
 
-function ContactLink() {
-  return <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
+function FormLink() {
+  return <a href={FORMS_URL}>el formulario de asistencia</a>
 }
 
 export default function FaqPage() {
@@ -38,9 +38,9 @@ export default function FaqPage() {
 
       {/* ── Contact bar ── */}
       <div className={s.contactBar}>
-        <span>✉️</span>
+        <span>📋</span>
         <span>
-          ¿No encuentra su pregunta aquí? Escríbanos a <ContactLink />
+          ¿No encuentra su respuesta? Complete <FormLink /> y le atendemos a la brevedad.
         </span>
       </div>
 
@@ -72,14 +72,14 @@ export default function FaqPage() {
               <span className={s.faqChev}>▼</span>
             </summary>
             <div className={s.faqAns}>
-              <p>Su desconfianza es completamente válida. Este correo fue enviado oficialmente por la Unidad de Tratamiento y Listas de Espera (UTLE) de la CCSS.</p>
+              <p>Su desconfianza es completamente válida. Este correo fue enviado oficialmente por la Unidad Técnica de Listas de Espera (UTLE) de la CCSS.</p>
               <p>Señales de que es legítimo:</p>
               <ul>
                 <li>No le pedimos ninguna contraseña, número de tarjeta ni dato bancario.</li>
                 <li>El enlace solo le pide confirmar si desea seguir en la lista.</li>
-                <li>Puede verificarlo escribiendo a <strong>{CONTACT}</strong> antes de hacer clic en nada.</li>
+                <li>Puede verificarlo completando <FormLink /> antes de hacer clic en nada.</li>
               </ul>
-              <div className={s.action}>Si prefiere no usar el enlace, puede responder directamente a este correo y registramos su confirmación.</div>
+              <div className={s.action}>Si prefiere no usar el enlace, complete el formulario de asistencia y registramos su confirmación manualmente.</div>
             </div>
           </details>
 
@@ -122,7 +122,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>El correo que le enviamos indica el procedimiento o especialidad al que corresponde. Le recomendamos revisarlo nuevamente.</p>
-              <div className={s.action}>Si no quedó claro, escríbanos a <ContactLink /> con su número de cédula y le confirmamos el detalle.</div>
+              <div className={s.action}>Si no quedó claro, complete <FormLink /> indicando su número de cédula y le confirmamos el detalle.</div>
             </div>
           </details>
 
@@ -158,7 +158,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>No se pierde de forma inmediata. Sin embargo, el registro puede quedar clasificado como no localizado. Si tras todos los intentos de contacto establecidos no es posible ubicarle, el caso podría ser depurado de la lista de espera.</p>
-              <div className={s.action}>Si sabe que intentaron contactarle, escríbanos a <ContactLink /> con su número de cédula para registrar su respuesta.</div>
+              <div className={s.action}>Si sabe que intentaron contactarle, complete <FormLink /> indicando su número de cédula para registrar su respuesta.</div>
             </div>
           </details>
 
@@ -182,7 +182,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Le recomendamos responder dentro del plazo indicado. Si no recibimos confirmación, su registro podría quedar marcado sin respuesta en este proceso de actualización, lo que puede afectar su posición en la lista.</p>
-              <div className={s.action}>Si ya pasó el plazo, escríbanos a <ContactLink /> y buscamos la forma de registrar su confirmación.</div>
+              <div className={s.action}>Si ya pasó el plazo, complete <FormLink /> y buscamos la forma de registrar su confirmación.</div>
             </div>
           </details>
 
@@ -194,7 +194,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Si al terminar el formulario apareció un mensaje de confirmación en la pantalla, su respuesta quedó registrada correctamente.</p>
-              <div className={s.action}>Si no vio ese mensaje, escríbanos con su número de cédula a <ContactLink /> y verificamos.</div>
+              <div className={s.action}>Si no vio ese mensaje, complete <FormLink /> indicando su número de cédula y verificamos.</div>
             </div>
           </details>
         </div>
@@ -213,7 +213,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Es posible que su atención haya ocurrido después de la fecha de corte del registro, por eso su nombre sigue apareciendo en la lista.</p>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula, la fecha aproximada de su atención y el hospital donde fue atendido. Actualizamos su expediente de inmediato.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula, la fecha aproximada de su atención y el hospital donde fue atendido. Actualizamos su expediente de inmediato.</div>
             </div>
           </details>
 
@@ -225,7 +225,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Puede retirarse voluntariamente de la lista en cualquier momento, sin ningún trámite complicado.</p>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula e indíquenos el motivo. Lo procesamos de inmediato.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula y el motivo. Lo procesamos de inmediato.</div>
             </div>
           </details>
 
@@ -236,7 +236,7 @@ export default function FaqPage() {
               <span className={s.faqChev}>▼</span>
             </summary>
             <div className={s.faqAns}>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula e indíquenos la respuesta correcta. Lo ajustamos sin problema.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula y la respuesta correcta. Lo ajustamos sin problema.</div>
             </div>
           </details>
         </div>
@@ -254,7 +254,7 @@ export default function FaqPage() {
               <span className={s.faqChev}>▼</span>
             </summary>
             <div className={s.faqAns}>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula y su nuevo correo electrónico. Lo actualizamos para futuras comunicaciones.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula y su nuevo correo electrónico. Lo actualizamos para futuras comunicaciones.</div>
             </div>
           </details>
 
@@ -265,7 +265,7 @@ export default function FaqPage() {
               <span className={s.faqChev}>▼</span>
             </summary>
             <div className={s.faqAns}>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula y su nuevo número de teléfono. Realizamos el cambio en su registro.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula y su nuevo número de teléfono. Realizamos el cambio en su registro.</div>
             </div>
           </details>
 
@@ -276,7 +276,7 @@ export default function FaqPage() {
               <span className={s.faqChev}>▼</span>
             </summary>
             <div className={s.faqAns}>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula, el dato incorrecto y el correcto. Revisamos y le confirmamos el ajuste.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula, el dato incorrecto y el correcto. Revisamos y le confirmamos el ajuste.</div>
             </div>
           </details>
         </div>
@@ -295,7 +295,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Los enlaces tienen una vigencia limitada por razones de seguridad. Si el suyo ya expiró, no se preocupe.</p>
-              <div className={s.action}>Escríbanos a <ContactLink /> con su número de cédula y le enviamos un nuevo enlace. También puede confirmar respondiendo directamente ese correo.</div>
+              <div className={s.action}>Complete <FormLink /> indicando su número de cédula y le enviamos un nuevo enlace.</div>
             </div>
           </details>
 
@@ -306,7 +306,7 @@ export default function FaqPage() {
               <span className={s.faqChev}>▼</span>
             </summary>
             <div className={s.faqAns}>
-              <p>Puede apersonarse directamente al <strong>Hospital Dr. Rafael Ángel Calderón Guardia</strong>, en la Unidad de Tratamiento y Listas de Espera (UTLE), con su cédula de identidad. Un funcionario registra su respuesta en ese momento.</p>
+              <p>Puede apersonarse directamente al <strong>Hospital Dr. Rafael Ángel Calderón Guardia</strong>, en la Unidad Técnica de Listas de Espera (UTLE), con su cédula de identidad. Un funcionario registra su respuesta en ese momento.</p>
               <div className={s.action}>También puede pedirle a un familiar o persona de confianza que le ayude a responder el formulario desde el teléfono o computadora de ellos.</div>
             </div>
           </details>
@@ -326,7 +326,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Lamentamos su pérdida.</p>
-              <div className={s.action}>Escríbanos a <ContactLink /> con el número de cédula del asegurado y la fecha aproximada del fallecimiento. No necesita ningún documento adicional. Actualizamos el registro de inmediato.</div>
+              <div className={s.action}>Complete <FormLink /> indicando el número de cédula del asegurado y la fecha aproximada del fallecimiento. No necesita ningún documento adicional. Actualizamos el registro de inmediato.</div>
             </div>
           </details>
 
@@ -338,7 +338,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>Sí. Como padre, madre o encargado legal puede responder en nombre del menor. Solo indíquenos su nombre y relación con el paciente.</p>
-              <div className={s.action}>Si tuvo dificultad con el formulario, escríbanos a <ContactLink /> indicando que representa al menor y lo registramos manualmente.</div>
+              <div className={s.action}>Complete <FormLink /> indicando que representa al menor y lo registramos manualmente.</div>
             </div>
           </details>
 
@@ -350,7 +350,7 @@ export default function FaqPage() {
             </summary>
             <div className={s.faqAns}>
               <p>En principio el cambio de EBAIS no elimina su registro de la lista. Sin embargo, es importante actualizar sus datos de contacto para evitar dificultades para localizarle. Si su médico de referencia también cambió, notifíquelo para que coordinen el traslado del expediente.</p>
-              <div className={s.action}>Avise directamente en el hospital o EBAIS de referencia original y actualice sus datos con nosotros escribiendo a <ContactLink />.</div>
+              <div className={s.action}>Avise directamente en el hospital o EBAIS de referencia original y actualice sus datos mediante <FormLink />.</div>
             </div>
           </details>
 
@@ -387,7 +387,7 @@ export default function FaqPage() {
             <div className={s.faqAns}>
               <p>Depende del tipo de consulta:</p>
               <ul>
-                <li><strong>Dudas sobre este correo o el formulario:</strong> escríbanos a <ContactLink /></li>
+                <li><strong>Dudas sobre este correo o el formulario:</strong> complete <FormLink /></li>
                 <li><strong>Inconsistencias en la lista o actualización de datos:</strong> Oficina de Atención Oportuna a las Personas (OAOP) del Hospital Calderón Guardia.</li>
                 <li><strong>Cambio en estado clínico o prioridad:</strong> su médico tratante o el servicio especializado de referencia.</li>
               </ul>
@@ -401,8 +401,8 @@ export default function FaqPage() {
           <img className={s.bottomCardCleo} src="/logos/cleo-robot.jpg" alt="CLEO" />
           <div className={s.bottomCardBody}>
             <h2>¿No encontró su respuesta?</h2>
-            <p>Escríbanos con su consulta y número de cédula — le respondemos a la brevedad.</p>
-            <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
+            <p>Complete el formulario con su consulta y número de cédula — le atendemos a la brevedad.</p>
+            <a href={FORMS_URL}>Completar formulario de asistencia →</a>
           </div>
         </div>
 
