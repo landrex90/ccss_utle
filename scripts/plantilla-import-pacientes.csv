@@ -1,0 +1,2 @@
+id_registro,nombre_paciente,numero_asegurado,correo,telefono,especialidad,centro_medico,tipo_atencion,nombre_servicio,lateralidad,procedimiento,tipo_consulta,fecha_cita,hora_cita,ultimos_4_asegurado,campana_id
+REG-000001,Laura Vanessa Osorio Alvarez,1020462187,laubay58@gmail.com,,Medicina Interna,Hospital San Juan de Dios,consulta,Consulta Externa - Medicina Interna,,,, 2026-07-15,09:30,2187,CAMP-TEST-2026-06-18

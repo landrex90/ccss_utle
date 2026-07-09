@@ -12,7 +12,7 @@ const API_KEY   = process.env.SENDGRID_API_KEY
 const FROM      = 'gm_utle_gelisespera@ccss.sa.cr'
 const FROM_NAME = 'CCSS - Lista de Espera'
 const SUBJECT   = 'La CCSS le solicita actualizar su información en lista de espera'
-const BASE_URL  = 'https://ccss-utle-preprod.netlify.app'
+const BASE_URL  = 'https://ccss.cocoreservas.com'
 const CONTACTO  = 'mailto:gm_utle_gelisespera@ccss.sa.cr'
 
 // Destinatarios de la campaña TEST-EQUIPO-2026-06-12
@@ -35,7 +35,7 @@ async function main() {
     process.exit(1)
   }
 
-  const templatePath = path.join(__dirname, 'mailchimp_template_ccss.html')
+  const templatePath = path.join(__dirname, 'UTLE_template_ccss aprobacion.html')
   if (!fs.existsSync(templatePath)) {
     console.error('❌ Template no encontrado: scripts/mailchimp_template_ccss.html')
     process.exit(1)

@@ -77,7 +77,7 @@ async function main() {
   console.log(`🔗 URL: ${url}\n`)
 
   // ── 2. Preparar template HTML ───────────────────────────────────────────────
-  const templatePath = path.join(__dirname, 'mailchimp_template_ccss.html')
+  const templatePath = path.join(__dirname, 'UTLE_template_ccss aprobacion.html')
   if (!fs.existsSync(templatePath)) {
     console.error('❌ Template no encontrado:', templatePath)
     process.exit(1)
