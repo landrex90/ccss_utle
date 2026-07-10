@@ -40,7 +40,7 @@ export default function FaqPage() {
       <div className={s.contactBar}>
         <span>📋</span>
         <span>
-          ¿No encuentra su respuesta? Complete <FormLink /> y le atendemos a la brevedad.
+          ¿No encuentra su respuesta? Complete <FormLink /> para brindarle asistencia.
         </span>
       </div>
 
@@ -401,7 +401,7 @@ export default function FaqPage() {
           <img className={s.bottomCardCleo} src="/logos/cleo-robot.jpg" alt="CLEO" />
           <div className={s.bottomCardBody}>
             <h2>¿No encontró su respuesta?</h2>
-            <p>Complete el formulario con su consulta y número de cédula — le atendemos a la brevedad.</p>
+            <p>Complete el formulario con su consulta y número de cédula para brindarle asistencia.</p>
             <a href={FORMS_URL}>Completar formulario de asistencia →</a>
           </div>
         </div>
