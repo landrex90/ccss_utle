@@ -26,7 +26,7 @@ interface Props {
   searchParams: { t?: string }
 }
 
-const CONTACT_EMAIL = 'gm_utle_gelisespera@ccss.sa.cr'
+const FORMS_URL = 'https://forms.office.com/Pages/ResponsePage.aspx?id=gQ7GKQY8lk6IXK54M95VSqvHqbMqisNFtIV8KyZJbMxUNE1GSTNCMkRWRkJOWDYzUk05T1hGT1ZBQy4u'
 
 function ErrorPage({ message }: { message: string }) {
   return (
@@ -35,7 +35,14 @@ function ErrorPage({ message }: { message: string }) {
         <CCSSHeader />
         <div className="mt-8 card p-8">
           <p className="text-gray-700 dark:text-gray-200 text-lg leading-relaxed">{message}</p>
-          <p className="mt-4 text-ccss-primary dark:text-ccss-accent font-medium text-sm">{CONTACT_EMAIL}</p>
+          <a
+            href={FORMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-ccss-primary dark:text-ccss-accent font-medium text-sm underline"
+          >
+            Formulario de asistencia CCSS
+          </a>
         </div>
       </div>
     </main>
@@ -69,7 +76,7 @@ export default async function UTLEPage({ searchParams }: Props) {
   const { t } = searchParams
 
   if (!t) {
-    return <ErrorPage message="El enlace no es válido. Por favor verifique que el enlace sea el correcto o comuníquese a:" />
+    return <ErrorPage message="El enlace no es válido. Por favor verifique que el enlace sea el correcto o solicite asistencia en:" />
   }
 
   const supabase = createClient()
@@ -83,15 +90,15 @@ export default async function UTLEPage({ searchParams }: Props) {
     .single()
 
   if (error || !registro) {
-    return <ErrorPage message="No encontramos su registro en el sistema. Para asistencia comuníquese a:" />
+    return <ErrorPage message="No encontramos su registro en el sistema. Para asistencia acceda al:" />
   }
 
   if (new Date(registro.link_expires_at) < new Date()) {
-    return <ErrorPage message="Este enlace ha expirado. Para solicitar uno nuevo, comuníquese a:" />
+    return <ErrorPage message="Este enlace ha expirado. Para solicitar uno nuevo acceda al:" />
   }
 
   if (registro.estado !== 'PENDIENTE') {
-    return <ErrorPage message="Ya hemos recibido su respuesta. Muchas gracias por su participación. Si tiene consultas, comuníquese a:" />
+    return <ErrorPage message="Ya hemos recibido su respuesta. Muchas gracias por su participación. Si tiene consultas acceda al:" />
   }
 
   // Registrar primer acceso: IP, dispositivo y geolocalización (solo en el primer acceso)

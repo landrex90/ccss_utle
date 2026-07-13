@@ -35,9 +35,14 @@ export default function Step1Consent({ nombrePaciente, onAnswer, pendingSelectio
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Si tiene dudas sobre este proceso:{' '}
-          <span className="font-medium text-ccss-primary dark:text-ccss-accent">
-            gm_utle_gelisespera@ccss.sa.cr
-          </span>
+          <a
+            href="https://forms.office.com/Pages/ResponsePage.aspx?id=gQ7GKQY8lk6IXK54M95VSqvHqbMqisNFtIV8KyZJbMxUNE1GSTNCMkRWRkJOWDYzUk05T1hGT1ZBQy4u"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-ccss-primary dark:text-ccss-accent underline"
+          >
+            Formulario de asistencia CCSS
+          </a>
         </p>
       </div>
 

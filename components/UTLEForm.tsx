@@ -15,7 +15,7 @@ import Step5Conditions from './steps/Step5Conditions'
 import Step6Contact    from './steps/Step6Contact'
 
 const AUTOADVANCE_MS = 450
-const CONTACT_EMAIL  = 'gm_utle_gelisespera@ccss.sa.cr'
+const FORMS_URL = 'https://forms.office.com/Pages/ResponsePage.aspx?id=gQ7GKQY8lk6IXK54M95VSqvHqbMqisNFtIV8KyZJbMxUNE1GSTNCMkRWRkJOWDYzUk05T1hGT1ZBQy4u'
 
 type FlowStep = 1 | 2 | 3 | 4 | 5 | 6 | 'transition' | 'summary' | 'closing'
 
@@ -28,15 +28,15 @@ interface ConfirmState {
 const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
   NO_AUTORIZO: {
     title:   'Entendemos y respetamos su decisión',
-    message: `Si en el futuro desea actualizar su información o tiene consultas relacionadas con su atención pendiente, puede comunicarse con la CCSS al correo:\n${CONTACT_EMAIL}\n\nGracias por su tiempo.`,
+    message: `Si en el futuro desea actualizar su información o tiene consultas relacionadas con su atención pendiente, puede solicitarlo a través del formulario oficial de asistencia de la CCSS.\n\nGracias por su tiempo.`,
   },
   NO_VERIFICADO: {
     title:   'No fue posible verificar su identidad',
-    message: `Por seguridad, el proceso ha sido finalizado temporalmente.\n\nSi considera que se trata de un error o necesita apoyo para actualizar su información, puede escribirnos al correo:\n${CONTACT_EMAIL}\n\nGracias por su comprensión.`,
+    message: `Por seguridad, el proceso ha sido finalizado temporalmente.\n\nSi considera que se trata de un error o necesita apoyo para actualizar su información, puede solicitarlo a través del formulario oficial de asistencia de la CCSS.\n\nGracias por su comprensión.`,
   },
   INFO_INCORRECTA: {
     title:   'Gracias por informarnos',
-    message: `Para revisar correctamente su caso, por favor indíquenos cuáles datos considera que presentan algún error o requieren corrección.\n\nLa información brindada será revisada por el equipo correspondiente de la CCSS.\n\nSi desea ampliar detalles adicionales, puede escribirnos a:\n${CONTACT_EMAIL}`,
+    message: `Para revisar correctamente su caso, por favor indíquenos cuáles datos considera que presentan algún error o requieren corrección.\n\nLa información brindada será revisada por el equipo correspondiente de la CCSS.\n\nSi desea ampliar detalles adicionales, puede hacerlo a través del formulario oficial de asistencia.`,
   },
   DEPURADO_YA_ATENDIDO: {
     title:   'Muchas gracias',
@@ -48,15 +48,15 @@ const CLOSING_DATA: Record<EstadoFinal, { title: string; message: string }> = {
   },
   DEPURADO_RENUNCIA: {
     title:   'Muchas gracias por brindarnos esta información',
-    message: `Sus respuestas serán utilizadas para actualizar la gestión administrativa de la lista de espera de la CCSS.\n\nSi tiene alguna consulta adicional relacionada con este proceso, puede comunicarse al correo:\n${CONTACT_EMAIL}\n\nLe agradecemos su tiempo y colaboración.`,
+    message: `Sus respuestas serán utilizadas para actualizar la gestión administrativa de la lista de espera de la CCSS.\n\nSi tiene alguna consulta adicional relacionada con este proceso, puede acceder al formulario oficial de asistencia.\n\nLe agradecemos su tiempo y colaboración.`,
   },
   NO_ASEGURADO: {
     title:   'Agradecemos su respuesta',
-    message: `Le solicitamos por favor actualizar su estado administrativo ante la CCSS para poder continuar con su atención.\n\n${CONTACT_EMAIL}`,
+    message: `Le solicitamos por favor actualizar su estado administrativo ante la CCSS para poder continuar con su atención.\n\nPuede hacerlo a través del formulario oficial de asistencia.`,
   },
   ACTIVO: {
     title:   'Muchas gracias por brindarnos esta información',
-    message: `Sus respuestas serán utilizadas por la CCSS para actualizar y gestionar su caso dentro de la lista de espera.\n\nLa actualización realizada no modifica automáticamente su posición en la lista, pero permitirá mejorar la gestión y contacto relacionado con su atención.\n\nPor favor manténgase atento/a a futuras comunicaciones de la CCSS por los medios autorizados.\n\nSi tiene dudas o consultas adicionales:\n${CONTACT_EMAIL}\n\nRecuerde que la CCSS nunca solicitará contraseñas, códigos bancarios ni pagos.`,
+    message: `Sus respuestas serán utilizadas por la CCSS para actualizar y gestionar su caso dentro de la lista de espera.\n\nLa actualización realizada no modifica automáticamente su posición en la lista, pero permitirá mejorar la gestión y contacto relacionado con su atención.\n\nPor favor manténgase atento/a a futuras comunicaciones de la CCSS por los medios autorizados.\n\nRecuerde que la CCSS nunca solicitará contraseñas, códigos bancarios ni pagos.`,
   },
 }
 
@@ -177,7 +177,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     }
     const result = await submitResponse(final)
     if (!result.ok) {
-      setGateError('No fue posible guardar su respuesta. Por favor intente nuevamente o comuníquese a: ' + CONTACT_EMAIL)
+      setGateError('No fue posible guardar su respuesta. Por favor intente nuevamente o use el formulario de asistencia oficial.')
       return
     }
     setClosingData(CLOSING_DATA[estado])
@@ -325,7 +325,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
     const result = await submitResponse(final)
     setSubmitting(false)
     if (!result.ok) {
-      setGateError('No fue posible guardar su respuesta. Por favor intente nuevamente o comuníquese a: ' + CONTACT_EMAIL)
+      setGateError('No fue posible guardar su respuesta. Por favor intente nuevamente o use el formulario de asistencia oficial.')
       return
     }
     setClosingData(CLOSING_DATA.ACTIVO)
@@ -362,7 +362,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
         />
         <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">
           ¿Necesita ayuda?{' '}
-          <span className="font-medium text-ccss-primary dark:text-ccss-accent">{CONTACT_EMAIL}</span>
+          <a href={FORMS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-ccss-primary dark:text-ccss-accent underline">Formulario de asistencia CCSS</a>
         </p>
       </div>
     )
@@ -393,7 +393,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
         </div>
         <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-8">
           ¿Necesita ayuda?{' '}
-          <span className="font-medium text-ccss-primary dark:text-ccss-accent">{CONTACT_EMAIL}</span>
+          <a href={FORMS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-ccss-primary dark:text-ccss-accent underline">Formulario de asistencia CCSS</a>
         </p>
       </div>
     )
@@ -475,7 +475,7 @@ export default function UTLEForm({ patient, token }: { patient: PatientPublicDat
 
       <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-8">
         ¿Necesita ayuda?{' '}
-        <span className="font-medium text-ccss-primary dark:text-ccss-accent">{CONTACT_EMAIL}</span>
+        <a href={FORMS_URL} target="_blank" rel="noopener noreferrer" className="font-medium text-ccss-primary dark:text-ccss-accent underline">Formulario de asistencia CCSS</a>
       </p>
     </div>
   )
