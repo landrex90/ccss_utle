@@ -66,7 +66,7 @@ export default function ViewerLoginPage() {
                 autoCorrect="off"
                 spellCheck={false}
                 className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none"
-                placeholder="jcchacov"
+                placeholder="su.usuario"
               />
               <span className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700 border-l border-gray-300 dark:border-gray-600 select-none">
                 @ccss.sa.cr
