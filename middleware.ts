@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const COOKIE = 'admin_session'
+const ADMIN_COOKIE  = 'admin_session'
+const VIEWER_COOKIE = 'viewer_session'
 
 // Edge Runtime usa Web Crypto API (no Node.js crypto)
-async function computeExpectedCookie(): Promise<string> {
+async function computeAdminCookie(): Promise<string> {
   const password = process.env.ADMIN_PASSWORD ?? ''
   const secret   = process.env.ADMIN_SESSION_SECRET ?? password
   const enc      = new TextEncoder()
@@ -20,18 +21,50 @@ async function computeExpectedCookie(): Promise<string> {
     .join('')
 }
 
+// Viewer cookie = "{username}|{HMAC(VIEWER_SESSION_SECRET, username)}"
+async function verifyViewerCookie(cookieValue: string): Promise<boolean> {
+  const sep = cookieValue.lastIndexOf('|')
+  if (sep < 0) return false
+  const username = cookieValue.slice(0, sep)
+  const received = cookieValue.slice(sep + 1)
+  const secret = process.env.VIEWER_SESSION_SECRET ?? ''
+  const enc    = new TextEncoder()
+  const key    = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(username))
+  const expected = Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+  return received === expected
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    const cookie = request.cookies.get(COOKIE)
+    const cookie = request.cookies.get(ADMIN_COOKIE)
     if (!cookie) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
-
-    const expected = await computeExpectedCookie()
+    const expected = await computeAdminCookie()
     if (cookie.value !== expected) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
+    }
+  }
+
+  if (pathname.startsWith('/estadisticas') && !pathname.startsWith('/estadisticas/login')) {
+    const cookie = request.cookies.get(VIEWER_COOKIE)
+    if (!cookie) {
+      return NextResponse.redirect(new URL('/estadisticas/login', request.url))
+    }
+    const valid = await verifyViewerCookie(cookie.value)
+    if (!valid) {
+      return NextResponse.redirect(new URL('/estadisticas/login', request.url))
     }
   }
 
@@ -39,5 +72,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/admin/:path*',
+  matcher: ['/admin/:path*', '/estadisticas/:path*'],
 }
