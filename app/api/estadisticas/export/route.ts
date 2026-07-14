@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { validateViewerSession } from '@/lib/viewer-auth'
+import { validateAdminSession } from '@/lib/admin-auth'
 import * as XLSX from 'xlsx'
 
 const PAGE_SIZE = 1000
 
 export async function GET(request: NextRequest) {
-  // Auth: viewer cookie must be valid
-  const username = validateViewerSession(request)
+  // Auth: viewer cookie OR admin cookie
+  const username = validateViewerSession(request) ?? (validateAdminSession(request) ? 'admin' : null)
   if (!username) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }

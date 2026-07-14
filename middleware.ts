@@ -58,13 +58,15 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/estadisticas') && !pathname.startsWith('/estadisticas/login')) {
-    const cookie = request.cookies.get(VIEWER_COOKIE)
-    if (!cookie) {
-      return NextResponse.redirect(new URL('/estadisticas/login', request.url))
-    }
-    const valid = await verifyViewerCookie(cookie.value)
-    if (!valid) {
-      return NextResponse.redirect(new URL('/estadisticas/login', request.url))
+    const adminCookie  = request.cookies.get(ADMIN_COOKIE)
+    const expectedAdmin = await computeAdminCookie()
+    const adminValid   = adminCookie?.value === expectedAdmin
+
+    if (!adminValid) {
+      const viewerCookie = request.cookies.get(VIEWER_COOKIE)
+      if (!viewerCookie || !(await verifyViewerCookie(viewerCookie.value))) {
+        return NextResponse.redirect(new URL('/estadisticas/login', request.url))
+      }
     }
   }
 
