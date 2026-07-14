@@ -201,7 +201,7 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
   if (!idList.length) return { total:0, paso1_si:0, paso2_si:0, paso3_si:0, paso3_no:0, paso4_si:0, paso4_no:0, paso5_flexible:0, paso5_no_flexible:0, paso5_puede:0, paso5_no_puede:0, paso6:{}, motivo_retiro:{}, motivo_no_asistir:{}, flexible_total:0, puede_total:0 }
 
   const rows = await paginateRespuestas(sb, idList,
-    'paso_1_consentimiento,paso_2_verificacion,paso_3_info_correcta,paso_4_quiere_seguir,paso_5_flexible_centro,paso_5_puede_asistir,paso_5_motivo,paso_5_motivo_no_asistir,paso_6_medio_contacto'
+    'paso_1_consentimiento,paso_2_verificacion,paso_3_info_correcta,paso_4_desea_continuar,motivo_retiro,paso_5a_flexibilidad_centro,paso_5b_condiciones_asistir,paso_5b_motivo_no_asistir,paso_6_medio_contacto'
   )
 
   let paso1_si=0, paso2_si=0, paso3_si=0, paso3_no=0, paso4_si=0, paso4_no=0
@@ -212,29 +212,29 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
   const motivo_no_asistir: Record<string, number> = {}
 
   for (const r of rows) {
-    if (r.paso_1_consentimiento === 'si') paso1_si++
-    if (r.paso_2_verificacion   === 'si') paso2_si++
-    if (r.paso_3_info_correcta  === 'si') paso3_si++
+    if (r.paso_1_consentimiento    === 'si') paso1_si++
+    if (r.paso_2_verificacion      === 'si') paso2_si++
+    if (r.paso_3_info_correcta     === 'si') paso3_si++
     else if (r.paso_3_info_correcta === 'no') paso3_no++
-    if (r.paso_4_quiere_seguir  === 'si') {
+    if (r.paso_4_desea_continuar   === 'si') {
       paso4_si++
-      if (r.paso_5_flexible_centro !== undefined && r.paso_5_flexible_centro !== null) {
+      if (r.paso_5a_flexibilidad_centro !== undefined && r.paso_5a_flexibilidad_centro !== null) {
         flexible_total++
-        if (r.paso_5_flexible_centro === 'si') paso5_flexible++
+        if (r.paso_5a_flexibilidad_centro === 'si') paso5_flexible++
         else paso5_no_flexible++
       }
-      if (r.paso_5_puede_asistir !== undefined && r.paso_5_puede_asistir !== null) {
+      if (r.paso_5b_condiciones_asistir !== undefined && r.paso_5b_condiciones_asistir !== null) {
         puede_total++
-        if (r.paso_5_puede_asistir === 'si') paso5_puede++
+        if (r.paso_5b_condiciones_asistir === 'si') paso5_puede++
         else paso5_no_puede++
       }
-    } else if (r.paso_4_quiere_seguir === 'no') {
+    } else if (r.paso_4_desea_continuar === 'no') {
       paso4_no++
-      const m = (r.paso_5_motivo as string) ?? 'Sin especificar'
+      const m = (r.motivo_retiro as string) ?? 'Sin especificar'
       if (m) motivo_retiro[m] = (motivo_retiro[m] ?? 0) + 1
     }
-    if (r.paso_5_motivo_no_asistir) {
-      const m = r.paso_5_motivo_no_asistir as string
+    if (r.paso_5b_motivo_no_asistir) {
+      const m = r.paso_5b_motivo_no_asistir as string
       motivo_no_asistir[m] = (motivo_no_asistir[m] ?? 0) + 1
     }
     const medio = (r.paso_6_medio_contacto as string) ?? null
