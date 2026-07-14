@@ -403,7 +403,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         {tab === 'formulario' && (
           <div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }}>
-              <KPI lbl="Formularios recibidos" val={fmt(formSteps.total)} sub="100% completaron" col={C.blue} />
+              <KPI lbl="Formularios recibidos" val={fmt(formSteps.total)} sub={`${pct(c.completado, formSteps.total)} completaron`} col={C.blue} />
               <KPI lbl="Siguen en lista espera" val={fmt(formSteps.paso4_si)} sub={`${pct(formSteps.paso4_si, formSteps.total)} de respondidos`} col={C.green} />
               <KPI lbl="Info correcta en BD" val={fmt(formSteps.paso3_si)} sub={`${pct(formSteps.paso3_si, formSteps.total)} confirmaron`} col={C.green} />
               <KPI lbl="Canal preferido" val={Object.entries(formSteps.paso6).sort((a,b)=>b[1]-a[1])[0]?.[0] ?? '—'} sub={`${pct(Object.entries(formSteps.paso6).sort((a,b)=>b[1]-a[1])[0]?.[1]??0, formSteps.total)} lo eligieron`} col={C.purple} />

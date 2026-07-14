@@ -127,12 +127,8 @@ async function getEstados(sb: ReturnType<typeof createClient>, campanaId: string
 }
 
 async function getEficiencia(sb: ReturnType<typeof createClient>, campanaId: string, c: CampanaInfo): Promise<EficienciaData> {
-  const { data: tiempos } = await sb.from('registros')
-    .select('correo_enviado_at,encuesta_completada_at,primer_acceso_dispositivo')
-    .eq('encuesta_campana_id', campanaId)
-    .not('encuesta_completada_at', 'is', null)
-    .not('correo_enviado_at', 'is', null)
-    .limit(2000)
+  const tiempos = (await paginateRegistros(sb, campanaId, 'correo_enviado_at,encuesta_completada_at,primer_acceso_dispositivo'))
+    .filter(r => r.encuesta_completada_at !== null && r.correo_enviado_at !== null)
 
   let minutos_primer_respuesta: number | null = null
   let minutos_promedio: number | null = null
@@ -176,13 +172,13 @@ async function getEspecialidades(sb: ReturnType<typeof createClient>, campanaId:
 }
 
 async function getDispositivos(sb: ReturnType<typeof createClient>, campanaId: string): Promise<DispositivoData> {
-  const { data } = await sb.from('registros').select('primer_acceso_dispositivo')
-    .eq('encuesta_campana_id', campanaId).not('primer_acceso_dispositivo', 'is', null)
+  const rows = await paginateRegistros(sb, campanaId, 'primer_acceso_dispositivo')
+  const data = rows.filter(r => r.primer_acceso_dispositivo !== null)
   const tipo: Record<string, number> = {}
   const os:   Record<string, number> = {}
   const browser: Record<string, number> = {}
   let total = 0
-  for (const r of data ?? []) {
+  for (const r of data) {
     const d = (r.primer_acceso_dispositivo as string).split(' / ')
     const t = d[0] ?? 'Desconocido'
     const o = d[1] ?? 'Desconocido'
