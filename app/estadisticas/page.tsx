@@ -62,91 +62,35 @@ export interface ProximaFaseData {
   ya_respondieron: number
 }
 
-// ── Helpers de paginación ──────────────────────────────────────────────────────
-async function paginateRegistros(sb: ReturnType<typeof createClient>, campanaId: string, columns: string) {
-  const rows: Record<string, unknown>[] = []
-  let from = 0
-  while (true) {
-    const { data } = await sb.from('registros').select(columns)
-      .eq('encuesta_campana_id', campanaId).range(from, from + 999)
-    if (!data || data.length === 0) break
-    rows.push(...(data as unknown as Record<string, unknown>[]))
-    if (data.length < 1000) break
-    from += 1000
-  }
-  return rows
-}
+// ── Queries — todas usan RPC (sin límite de filas) ─────────────────────────────
 
-async function paginateRespuestas(sb: ReturnType<typeof createClient>, ids: string[], columns: string) {
-  if (ids.length === 0) return []
-  const rows: Record<string, unknown>[] = []
-  const CHUNK = 200  // avoid PostgREST URL length limit with large IN clauses
-  for (let i = 0; i < ids.length; i += CHUNK) {
-    const chunk = ids.slice(i, i + CHUNK)
-    let from = 0
-    while (true) {
-      const { data } = await sb.from('respuestas').select(columns)
-        .in('id_registro', chunk).range(from, from + 999)
-      if (!data || data.length === 0) break
-      rows.push(...(data as unknown as Record<string, unknown>[]))
-      if (data.length < 1000) break
-      from += 1000
-    }
-  }
-  return rows
-}
-
-// ── Queries ────────────────────────────────────────────────────────────────────
 async function getCampanas(): Promise<CampanaInfo[]> {
   const sb = createClient()
-  const { data: ids } = await sb.from('registros').select('encuesta_campana_id').not('encuesta_campana_id', 'is', null)
-  if (!ids || ids.length === 0) return []
-  const uniqueIds = Array.from(new Set(ids.map(r => r.encuesta_campana_id as string)))
-
-  const campanas = await Promise.all(uniqueIds.map(async id => {
-    const [{ count: total }, { count: enviado }, { count: accedieron }, { count: completado }, { data: f }] = await Promise.all([
-      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id),
-      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id).eq('correo_estado', 'enviado'),
-      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id).not('primer_acceso_at', 'is', null),
-      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id).not('encuesta_completada_at', 'is', null),
-      sb.from('registros').select('correo_enviado_at').eq('encuesta_campana_id', id).not('correo_enviado_at', 'is', null).order('correo_enviado_at', { ascending: true }).limit(1),
-    ])
-    return { id, total: total ?? 0, enviado: enviado ?? 0, accedieron: accedieron ?? 0, completado: completado ?? 0, fecha_inicio: f?.[0]?.correo_enviado_at ?? null }
+  const { data } = await sb.rpc('get_campanas_list')
+  return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+    id:           r.id          as string,
+    total:        Number(r.total),
+    enviado:      Number(r.enviado),
+    accedieron:   Number(r.accedieron),
+    completado:   Number(r.completado),
+    fecha_inicio: r.fecha_inicio as string | null,
   }))
-  return campanas.sort((a, b) => (b.fecha_inicio ?? '').localeCompare(a.fecha_inicio ?? ''))
 }
 
 async function getEstados(sb: ReturnType<typeof createClient>, campanaId: string): Promise<EstadoRow[]> {
-  const rows = await paginateRegistros(sb, campanaId, 'estado')
-  const map: Record<string, number> = {}
-  for (const r of rows) {
-    const e = (r.estado as string) ?? 'DESCONOCIDO'
-    map[e] = (map[e] ?? 0) + 1
-  }
-  return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([estado, count]) => ({ estado, count }))
+  const { data } = await sb.rpc('get_campana_estados', { p_campana_id: campanaId })
+  return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+    estado: r.estado as string,
+    count:  Number(r.count),
+  }))
 }
 
 async function getEficiencia(sb: ReturnType<typeof createClient>, campanaId: string, c: CampanaInfo): Promise<EficienciaData> {
-  const tiempos = (await paginateRegistros(sb, campanaId, 'correo_enviado_at,encuesta_completada_at,primer_acceso_dispositivo'))
-    .filter(r => r.encuesta_completada_at !== null && r.correo_enviado_at !== null)
-
-  let minutos_primer_respuesta: number | null = null
-  let minutos_promedio: number | null = null
-  let pct_movil = 0
-  let resp_por_min = 0
-
-  if (tiempos && tiempos.length > 0) {
-    const diffs = tiempos.map(r => (new Date(r.encuesta_completada_at as string).getTime() - new Date(r.correo_enviado_at as string).getTime()) / 60000)
-      .filter(d => d > 0 && d < 10080)
-    if (diffs.length > 0) {
-      minutos_primer_respuesta = Math.round(Math.min(...diffs))
-      minutos_promedio = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length)
-    }
-    const moviles = tiempos.filter(r => typeof r.primer_acceso_dispositivo === 'string' && (r.primer_acceso_dispositivo as string).startsWith('Móvil')).length
-    pct_movil = Math.round((moviles / tiempos.length) * 100)
-  }
+  const { data } = await sb.rpc('get_campana_eficiencia', { p_campana_id: campanaId })
+  const row = (((data ?? []) as Record<string, unknown>[])[0]) ?? {}
 
   let minutos_transcurridos: number | null = null
+  let resp_por_min = 0
   if (c.fecha_inicio) {
     minutos_transcurridos = Math.round((Date.now() - new Date(c.fecha_inicio).getTime()) / 60000)
     if (minutos_transcurridos > 0 && c.completado > 0) {
@@ -154,101 +98,75 @@ async function getEficiencia(sb: ReturnType<typeof createClient>, campanaId: str
     }
   }
 
-  const conversion_pct = c.accedieron > 0 ? Math.round((c.completado / c.accedieron) * 100) : 0
-  return { minutos_primer_respuesta, minutos_promedio, conversion_pct, resp_por_min, minutos_transcurridos, pct_movil }
+  return {
+    minutos_primer_respuesta: row.minutos_primer_respuesta != null ? Math.round(Number(row.minutos_primer_respuesta)) : null,
+    minutos_promedio:         row.minutos_promedio != null ? Math.round(Number(row.minutos_promedio)) : null,
+    conversion_pct:           c.accedieron > 0 ? Math.round((c.completado / c.accedieron) * 100) : 0,
+    resp_por_min,
+    minutos_transcurridos,
+    pct_movil:                Math.round(Number(row.pct_movil ?? 0)),
+  }
 }
 
 async function getEspecialidades(sb: ReturnType<typeof createClient>, campanaId: string): Promise<EspecialidadRow[]> {
-  const todos = await paginateRegistros(sb, campanaId, 'id_registro,especialidad,encuesta_completada_at')
-  const map: Record<string, { total: number; resp: number }> = {}
-  for (const r of todos) {
-    const esp = (r.especialidad as string) ?? 'Sin datos'
-    if (!map[esp]) map[esp] = { total: 0, resp: 0 }
-    map[esp].total++
-    if (r.encuesta_completada_at) map[esp].resp++
-  }
-  return Object.entries(map).sort((a, b) => b[1].total - a[1].total)
-    .map(([especialidad, v]) => ({ especialidad, total_piloto: v.total, respondieron: v.resp }))
+  const { data } = await sb.rpc('get_campana_especialidades', { p_campana_id: campanaId })
+  return ((data ?? []) as Record<string, unknown>[]).map(r => ({
+    especialidad: r.especialidad as string,
+    total_piloto: Number(r.total_piloto),
+    respondieron: Number(r.respondieron),
+  }))
 }
 
 async function getDispositivos(sb: ReturnType<typeof createClient>, campanaId: string): Promise<DispositivoData> {
-  const rows = await paginateRegistros(sb, campanaId, 'primer_acceso_dispositivo')
-  const data = rows.filter(r => r.primer_acceso_dispositivo !== null)
+  const { data } = await sb.rpc('get_campana_dispositivos', { p_campana_id: campanaId })
   const tipo: Record<string, number> = {}
   const os:   Record<string, number> = {}
   const browser: Record<string, number> = {}
   let total = 0
-  for (const r of data) {
-    const d = (r.primer_acceso_dispositivo as string).split(' / ')
-    const t = d[0] ?? 'Desconocido'
-    const o = d[1] ?? 'Desconocido'
-    const b = d[2] ?? 'Desconocido'
-    tipo[t]    = (tipo[t]    ?? 0) + 1
-    os[o]      = (os[o]      ?? 0) + 1
-    browser[b] = (browser[b] ?? 0) + 1
-    total++
+  for (const r of ((data ?? []) as Record<string, unknown>[])) {
+    const parts = (r.dispositivo as string).split(' / ')
+    const t = parts[0] ?? 'Desconocido'
+    const o = parts[1] ?? 'Desconocido'
+    const b = parts[2] ?? 'Desconocido'
+    const n = Number(r.total)
+    tipo[t]    = (tipo[t]    ?? 0) + n
+    os[o]      = (os[o]      ?? 0) + n
+    browser[b] = (browser[b] ?? 0) + n
+    total += n
   }
   return { tipo, os, browser, total }
 }
 
 async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: string): Promise<FormSteps> {
-  const idRows = await paginateRegistros(sb, campanaId, 'id_registro')
-  const idList = idRows.map(r => r.id_registro as string)
-  if (!idList.length) return { total:0, paso1_si:0, paso2_si:0, paso3_si:0, paso3_no:0, paso4_si:0, paso4_no:0, paso5_flexible:0, paso5_no_flexible:0, paso5_puede:0, paso5_no_puede:0, paso6:{}, motivo_retiro:{}, motivo_no_asistir:{}, flexible_total:0, puede_total:0 }
-
-  const rows = await paginateRespuestas(sb, idList,
-    'paso_1_consentimiento,paso_2_verificacion,paso_3_info_correcta,paso_4_desea_continuar,motivo_retiro,paso_5a_flexibilidad_centro,paso_5b_condiciones_asistir,paso_5b_motivo_no_asistir,paso_6_medio_contacto'
-  )
-
-  let paso1_si=0, paso2_si=0, paso3_si=0, paso3_no=0, paso4_si=0, paso4_no=0
-  let paso5_flexible=0, paso5_no_flexible=0, paso5_puede=0, paso5_no_puede=0
-  let flexible_total=0, puede_total=0
-  const paso6: Record<string, number> = {}
-  const motivo_retiro: Record<string, number> = {}
-  const motivo_no_asistir: Record<string, number> = {}
-
-  for (const r of rows) {
-    if (r.paso_1_consentimiento    === 'si_autorizo') paso1_si++
-    if (r.paso_2_verificacion      === 'exitosa') paso2_si++
-    if (r.paso_3_info_correcta     === 'si') paso3_si++
-    else if (r.paso_3_info_correcta === 'no') paso3_no++
-    if (r.paso_4_desea_continuar   === 'si') {
-      paso4_si++
-      if (r.paso_5a_flexibilidad_centro !== undefined && r.paso_5a_flexibilidad_centro !== null) {
-        flexible_total++
-        if (r.paso_5a_flexibilidad_centro === 'si') paso5_flexible++
-        else paso5_no_flexible++
-      }
-      if (r.paso_5b_condiciones_asistir !== undefined && r.paso_5b_condiciones_asistir !== null) {
-        puede_total++
-        if (r.paso_5b_condiciones_asistir === 'si') paso5_puede++
-        else paso5_no_puede++
-      }
-    } else if (r.paso_4_desea_continuar === 'no_ya_no_deseo' || r.paso_4_desea_continuar === 'no_asegurado') {
-      paso4_no++
-      const m = (r.motivo_retiro as string) ?? 'Sin especificar'
-      if (m) motivo_retiro[m] = (motivo_retiro[m] ?? 0) + 1
-    }
-    if (r.paso_5b_motivo_no_asistir) {
-      const m = r.paso_5b_motivo_no_asistir as string
-      motivo_no_asistir[m] = (motivo_no_asistir[m] ?? 0) + 1
-    }
-    const medio = (r.paso_6_medio_contacto as string) ?? null
-    if (medio) paso6[medio] = (paso6[medio] ?? 0) + 1
+  const { data } = await sb.rpc('get_campana_form_steps', { p_campana_id: campanaId })
+  const d = (data ?? {}) as Record<string, unknown>
+  return {
+    total:             Number(d.total             ?? 0),
+    paso1_si:          Number(d.paso1_si          ?? 0),
+    paso2_si:          Number(d.paso2_si          ?? 0),
+    paso3_si:          Number(d.paso3_si          ?? 0),
+    paso3_no:          Number(d.paso3_no          ?? 0),
+    paso4_si:          Number(d.paso4_si          ?? 0),
+    paso4_no:          Number(d.paso4_no          ?? 0),
+    paso5_flexible:    Number(d.paso5_flexible    ?? 0),
+    paso5_no_flexible: Number(d.paso5_no_flexible ?? 0),
+    paso5_puede:       Number(d.paso5_puede       ?? 0),
+    paso5_no_puede:    Number(d.paso5_no_puede    ?? 0),
+    flexible_total:    Number(d.flexible_total    ?? 0),
+    puede_total:       Number(d.puede_total       ?? 0),
+    paso6:             (d.paso6             ?? {}) as Record<string, number>,
+    motivo_retiro:     (d.motivo_retiro     ?? {}) as Record<string, number>,
+    motivo_no_asistir: (d.motivo_no_asistir ?? {}) as Record<string, number>,
   }
-
-  return { total: rows.length, paso1_si, paso2_si, paso3_si, paso3_no, paso4_si, paso4_no, paso5_flexible, paso5_no_flexible, paso5_puede, paso5_no_puede, paso6, motivo_retiro, motivo_no_asistir, flexible_total, puede_total }
 }
 
 async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: string, completado: number): Promise<ProximaFaseData> {
-  // Pendientes con teléfono registrado → elegibles para WhatsApp
   const { count: con_tel } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
     .eq('encuesta_campana_id', campanaId)
     .is('encuesta_completada_at', null)
     .not('telefono', 'is', null)
 
-  // Pendientes sin teléfono → solo correo + voicebot
   const { count: sin_tel } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
     .eq('encuesta_campana_id', campanaId)
@@ -256,8 +174,8 @@ async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: st
     .is('telefono', null)
 
   return {
-    wa_elegibles: con_tel ?? 0,
-    sin_wa:       sin_tel ?? 0,
+    wa_elegibles:    con_tel ?? 0,
+    sin_wa:          sin_tel ?? 0,
     ya_respondieron: completado,
   }
 }
@@ -267,9 +185,9 @@ interface Props { searchParams: { campana?: string } }
 
 export default async function EstadisticasPage({ searchParams }: Props) {
   const sb = createClient()
-  const campanas     = await getCampanas()
+  const campanas      = await getCampanas()
   const campanaActual = searchParams.campana ?? campanas[0]?.id ?? null
-  const campanaInfo  = campanas.find(c => c.id === campanaActual) ?? null
+  const campanaInfo   = campanas.find(c => c.id === campanaActual) ?? null
 
   if (!campanaInfo || !campanaActual) {
     return <div className="p-8 text-gray-500 text-center">No hay campañas registradas aún.</div>
