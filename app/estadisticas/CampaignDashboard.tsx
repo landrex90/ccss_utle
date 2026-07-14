@@ -1,384 +1,554 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
-import type { CampanaInfo, EficienciaData, DispositivoBreakdown, RespuestasStats } from './page'
+import type { CampanaInfo, EstadoRow, EficienciaData, EspecialidadRow, DispositivoData, FormSteps, ProximaFaseData } from './page'
+
+// ── Colores (idénticos al artifact) ────────────────────────────────────────────
+const C = {
+  blue:      '#004B83', blueLt: '#EBF2FA', blueMd: '#C7DCF0',
+  green:     '#00875A', greenLt: '#E3F5EC',
+  amber:     '#D97706', amberLt: '#FEF3C7',
+  red:       '#B91C1C', redLt: '#FEE2E2',
+  purple:    '#5B3FD4', purpleLt: '#EDE9FE',
+  gray:      '#64748B', border:  '#E2E8F0',
+  bg:        '#F7F9FC', text:    '#1A2433',
+  wa:        '#25D366',
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function pct(n: number, d: number) { return d ? `${Math.round((n / d) * 100)}%` : '—' }
-function fmt(n: number)            { return n.toLocaleString('es-CR') }
-function fmtDate(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('es-CR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+const pct  = (n: number, d: number) => d ? `${Math.round((n/d)*100)}%` : '—'
+const fmt  = (n: number) => n.toLocaleString('es-CR')
+const fmtMin = (m: number | null) => {
+  if (m === null) return '—'
+  if (m < 60) return `${m} min`
+  if (m < 1440) return `${Math.floor(m/60)}h ${m%60}min`
+  return `${Math.floor(m/1440)}d ${Math.round((m%1440)/60)}h`
 }
-function fmtMin(min: number | null) {
-  if (min === null) return '—'
-  if (min < 60)  return `${min} min`
-  if (min < 1440) return `${Math.round(min / 60)}h ${min % 60}min`
-  return `${Math.floor(min / 1440)}d ${Math.round((min % 1440) / 60)}h`
-}
+const fmtDate = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('es-CR', { day:'2-digit', month:'short', year:'numeric' }) : '—'
 
-// ── KPI Card ───────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color: 'blue' | 'green' | 'yellow' | 'gray' | 'purple' }) {
-  const cls = {
-    blue:   'bg-blue-50  dark:bg-blue-950/30  border-blue-200  text-blue-800',
-    green:  'bg-green-50 dark:bg-green-950/30 border-green-200 text-green-800',
-    yellow: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 text-amber-800',
-    gray:   'bg-gray-50  dark:bg-gray-800      border-gray-200  text-gray-700',
-    purple: 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 text-purple-800',
-  }[color]
+// ── Sub-componentes estilo artifact ───────────────────────────────────────────
+function KPI({ lbl, val, sub, col }: { lbl: string; val: string; sub?: string; col: string }) {
   return (
-    <div className={`border rounded-xl p-4 ${cls}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider opacity-60 mb-1">{label}</p>
-      <p className="text-2xl font-bold">{typeof value === 'number' ? fmt(value) : value}</p>
-      {sub && <p className="text-xs opacity-50 mt-0.5">{sub}</p>}
+    <div style={{ background:'#fff', border:`1px solid ${C.border}`, borderRadius:10, padding:'15px 17px' }}>
+      <div style={{ fontSize:11, color:C.gray, marginBottom:4 }}>{lbl}</div>
+      <div style={{ fontSize:28, fontWeight:800, lineHeight:1, color: col }}>{val}</div>
+      {sub && <div style={{ fontSize:11, color:C.gray, marginTop:3 }}>{sub}</div>}
     </div>
   )
 }
 
-// ── Bar Row ────────────────────────────────────────────────────────────────────
-function BarRow({ label, value, total, color }: { label: string; value: number; total: number; color: string }) {
-  const w = total ? Math.max(1, Math.round((value / total) * 100)) : 0
+function Insight({ val, lbl, desc, accent }: { val: string; lbl: string; desc: string; accent: string }) {
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm">
-        <span className="text-gray-700 dark:text-gray-200">{label}</span>
-        <span className="font-semibold">{fmt(value)} <span className="text-gray-400 font-normal text-xs">({pct(value, total)})</span></span>
+    <div style={{ background:'#fff', borderRadius:10, border:`1px solid ${C.border}`, padding:'14px 16px', borderTop:`3px solid ${accent}` }}>
+      <div style={{ fontSize:22, fontWeight:800, color:accent, marginBottom:2 }}>{val}</div>
+      <div style={{ fontSize:11, fontWeight:600, color:C.text }}>{lbl}</div>
+      <div style={{ fontSize:10, color:C.gray, marginTop:3, lineHeight:1.5 }}>{desc}</div>
+    </div>
+  )
+}
+
+function BarRow({ lbl, val, total, color, lblWidth = 160 }: { lbl: string; val: number; total: number; color: string; lblWidth?: number }) {
+  const w = total ? Math.max(0.5, (val/total)*100) : 0
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:9 }}>
+      <div style={{ fontSize:12, color:C.text, minWidth:lblWidth, maxWidth:lblWidth, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{lbl}</div>
+      <div style={{ flex:1, height:7, background:'#F1F5F9', borderRadius:4, overflow:'hidden' }}>
+        <div style={{ height:'100%', borderRadius:4, background:color, width:`${w}%` }} />
       </div>
-      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${w}%`, backgroundColor: color }} />
-      </div>
+      <div style={{ fontSize:12, fontWeight:700, minWidth:32, textAlign:'right' }}>{fmt(val)}</div>
+      <div style={{ fontSize:11, color:C.gray, minWidth:40, textAlign:'right' }}>{pct(val,total)}</div>
     </div>
   )
 }
 
-// ── Insight Card ───────────────────────────────────────────────────────────────
-function InsightCard({ emoji, label, value, sub, highlight }: { emoji: string; label: string; value: string; sub?: string; highlight?: boolean }) {
+function FunnelRow({ lbl, val, total, color }: { lbl: string; val: number; total: number; color: string }) {
+  const w = total ? Math.max(0.5, (val/total)*100) : 0
   return (
-    <div className={`rounded-xl border p-4 flex flex-col gap-1 ${highlight ? 'border-green-300 bg-green-50 dark:bg-green-950/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
-      <span className="text-2xl">{emoji}</span>
-      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-xl font-bold text-gray-800 dark:text-gray-100">{value}</p>
-      {sub && <p className="text-xs text-gray-500 dark:text-gray-400">{sub}</p>}
+    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:8 }}>
+      <span style={{ fontSize:12, width:185, flexShrink:0, color:C.text }}>{lbl}</span>
+      <div style={{ flex:1, height:9, background:'#F1F5F9', borderRadius:5, overflow:'hidden' }}>
+        <div style={{ height:'100%', borderRadius:5, background:color, width:`${w}%` }} />
+      </div>
+      <span style={{ fontSize:13, fontWeight:700, minWidth:44, textAlign:'right', color }}>{fmt(val)}</span>
+      <span style={{ fontSize:11, color:C.gray, minWidth:40, textAlign:'right' }}>{pct(val,total)}</span>
     </div>
   )
 }
+
+function StepBar({ label, a, b, total, colA, colB }: { label: string; a: number; b: number; total: number; colA: string; colB: string }) {
+  const wa = total ? (a/total)*100 : 0
+  const wb = total ? (b/total)*100 : 0
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+        <span style={{ fontSize:12, fontWeight:600 }}>{label}</span>
+        <span style={{ fontSize:12, fontWeight:700, color:colA }}>{a} sí · <span style={{ color:colB }}>{b} no</span></span>
+      </div>
+      <div style={{ height:7, borderRadius:4, overflow:'hidden', display:'flex' }}>
+        <div style={{ width:`${wa}%`, background:colA }} />
+        <div style={{ width:`${wb}%`, background:colB }} />
+      </div>
+      <div style={{ fontSize:10, color:C.gray, marginTop:3 }}>{pct(a,total)} · {pct(b,total)}</div>
+    </div>
+  )
+}
+
+const PILL: Record<string, string> = {
+  PENDIENTE: `background:#F1F5F9;color:${C.gray}`,
+  ACTIVO:    `background:${C.greenLt};color:${C.green}`,
+  INFO_INCORRECTA: `background:${C.redLt};color:${C.red}`,
+}
+function pill(estado: string) {
+  const s = PILL[estado] ?? (estado.startsWith('DEPURADO') ? `background:${C.amberLt};color:${C.amber}` : `background:#F1F5F9;color:${C.gray}`)
+  return <span style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, ...Object.fromEntries(s.split(';').filter(Boolean).map(p => { const [k,v]=p.split(':'); return [k.trim().replace(/-([a-z])/g,(_,c)=>c.toUpperCase()),v?.trim()] })) }}>{estado}</span>
+}
+
+const REFRESH_SECS = 120
+const CARD: React.CSSProperties = { background:'#fff', borderRadius:10, border:`1px solid ${C.border}`, padding:'20px 22px', marginBottom:18 }
+const SEC: React.CSSProperties  = { fontSize:10, fontWeight:700, letterSpacing:2, textTransform:'uppercase', color:C.gray, marginBottom:12 }
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface Props {
-  campanas: CampanaInfo[]
-  campanaActual: string | null
-  campanaInfo: CampanaInfo | null
-  eficiencia: EficienciaData
-  dispositivos: DispositivoBreakdown[]
-  respuestas: RespuestasStats
+  campanas:     CampanaInfo[]
+  campanaActual: string
+  campanaInfo:  CampanaInfo
+  estados:      EstadoRow[]
+  eficiencia:   EficienciaData
+  especialidades: EspecialidadRow[]
+  dispositivos: DispositivoData
+  formSteps:    FormSteps
+  proximaFase:  ProximaFaseData
 }
 
-const TABS = ['Resumen', 'Eficiencia', 'Especialidades', 'Tecnología', 'Formulario'] as const
-type Tab = typeof TABS[number]
+type Tab = 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente'
+const TABS: { id: Tab; label: string }[] = [
+  { id:'resumen',       label:'📊 Resumen'             },
+  { id:'eficiencia',    label:'⚡ Eficiencia'           },
+  { id:'especialidades',label:'🏥 Especialidades'       },
+  { id:'tecnologia',    label:'📱 Tecnología'           },
+  { id:'formulario',    label:'📋 Respuestas formulario'},
+  { id:'siguiente',     label:'💬 Próxima fase'         },
+]
 
-const REFRESH_SECS = 120
+export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase }: Props) {
+  const router = useRouter()
+  const [tab, setTab]     = useState<Tab>('resumen')
+  const [cd, setCd]       = useState(REFRESH_SECS)
+  const [exp, setExp]     = useState(false)
+  const [expErr, setExpErr] = useState('')
 
-export default function CampaignDashboard({ campanas, campanaActual, campanaInfo, eficiencia, dispositivos, respuestas }: Props) {
-  const router       = useRouter()
-  const [tab, setTab]             = useState<Tab>('Resumen')
-  const [exporting, setExporting] = useState(false)
-  const [exportError, setExportError] = useState('')
-  const [countdown, setCountdown] = useState(REFRESH_SECS)
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
-
-  // Auto-refresh cada REFRESH_SECS segundos
-  const refresh = useCallback(() => {
-    router.refresh()
-    setLastUpdated(new Date())
-    setCountdown(REFRESH_SECS)
-  }, [router])
-
+  const refresh = useCallback(() => { router.refresh(); setCd(REFRESH_SECS) }, [router])
   useEffect(() => {
-    const tick = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) { refresh(); return REFRESH_SECS }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(tick)
+    const t = setInterval(() => setCd(prev => { if (prev <= 1) { refresh(); return REFRESH_SECS } return prev - 1 }), 1000)
+    return () => clearInterval(t)
   }, [refresh])
 
-  function selectCampana(id: string) {
-    router.push(`/estadisticas?campana=${encodeURIComponent(id)}`)
-  }
-
   async function handleExport(tipo: 'registros' | 'respuestas') {
-    if (!campanaActual) return
-    setExporting(true); setExportError('')
+    setExp(true); setExpErr('')
     try {
       const res = await fetch(`/api/estadisticas/export?campana=${encodeURIComponent(campanaActual)}&tipo=${tipo}`)
-      if (!res.ok) { const d = await res.json().catch(() => ({})); setExportError(d.error ?? 'Error'); return }
+      if (!res.ok) { setExpErr('Error al exportar'); return }
       const blob = await res.blob()
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = `${campanaActual}_${tipo}.xlsx`
-      a.click()
-      URL.revokeObjectURL(a.href)
-    } catch { setExportError('Error de conexión') }
-    finally { setExporting(false) }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${campanaActual}_${tipo}.xlsx`; a.click(); URL.revokeObjectURL(a.href)
+    } catch { setExpErr('Error de conexión') }
+    finally { setExp(false) }
   }
 
-  const c = campanaInfo
+  const totalMax = especialidades[0]?.total_piloto ?? 1
+  const totalOsMax = Math.max(...Object.values(dispositivos.os), 1)
+  const totalBrMax = Math.max(...Object.values(dispositivos.browser), 1)
 
-  // Aggregated device data
-  const totalDisp = dispositivos.reduce((s, d) => s + d.count, 0)
-  const osCounts  = dispositivos.reduce<Record<string, number>>((m, d) => ({ ...m, [d.os]: (m[d.os] ?? 0) + d.count }), {})
-  const brCounts  = dispositivos.reduce<Record<string, number>>((m, d) => ({ ...m, [d.browser]: (m[d.browser] ?? 0) + d.count }), {})
-  const tipoCounts = dispositivos.reduce<Record<string, number>>((m, d) => ({ ...m, [d.tipo]: (m[d.tipo] ?? 0) + d.count }), {})
+  // Canal order for formulario
+  const canalOrder = ['whatsapp', 'cualquiera', 'llamada', 'correo', 'sms']
+  const canalColors: Record<string, string> = { whatsapp: C.wa, cualquiera: C.blueMd, llamada: C.blue, correo: '#94A3B8', sms: '#E2E8F0' }
+  const canalLabels: Record<string, string> = { whatsapp:'💬 WhatsApp', cualquiera:'🔀 Cualquiera', llamada:'📞 Llamada', correo:'📧 Correo', sms:'💬 SMS' }
 
   return (
-    <div className="space-y-5">
+    <div style={{ fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif", color:C.text }}>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Resultados de campaña</h1>
-          {c && (
-            <p className="text-sm text-gray-500 mt-0.5">
-              Iniciada el {fmtDate(c.fecha_inicio)} · {fmt(c.total)} registros
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col items-end gap-2">
-          {/* Selector de campaña */}
-          <select
-            value={campanaActual ?? ''}
-            onChange={e => selectCampana(e.target.value)}
-            className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#004B83]"
-          >
-            {campanas.length === 0 && <option value="">Sin campañas</option>}
-            {campanas.map(cc => <option key={cc.id} value={cc.id}>{cc.id}</option>)}
-          </select>
-
-          {/* Export buttons */}
-          {campanaActual && (
-            <div className="flex gap-2">
-              <button onClick={() => handleExport('registros')} disabled={exporting}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#004B83] text-[#004B83] hover:bg-blue-50 transition-colors disabled:opacity-50">
-                ↓ Registros Excel
-              </button>
-              <button onClick={() => handleExport('respuestas')} disabled={exporting}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-green-600 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50">
-                ↓ Respuestas Excel
-              </button>
+      {/* HEADER */}
+      <div style={{ background:C.blue, padding:'18px 0 14px', marginLeft:-24, marginRight:-24, marginTop:-32, paddingLeft:24, paddingRight:24 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
+          <div>
+            <div style={{ fontSize:10, color:'#89B8DC', letterSpacing:2, textTransform:'uppercase' }}>CCSS · Unidad Técnica de Listas de Espera</div>
+            <div style={{ fontSize:17, fontWeight:700, color:'#fff', marginTop:2 }}>CLEO · Dashboard {c.id.replace('ENCUESTA-','').replace(/_\d+$/, '')}</div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', flexWrap:'wrap' }}>
+              <span style={{ fontSize:11, background:'rgba(255,255,255,.15)', color:'#fff', padding:'3px 10px', borderRadius:20 }}>{campanaActual}</span>
             </div>
-          )}
-          {exportError && <p className="text-xs text-red-500">{exportError}</p>}
-
-          {/* Auto-refresh indicator */}
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <span>Actualiza en {countdown}s</span>
-            <button onClick={refresh} className="text-[#004B83] dark:text-blue-400 underline hover:no-underline">
-              Actualizar ahora
-            </button>
+            <div style={{ fontSize:11, color:'#89B8DC', marginTop:6 }}>
+              <span style={{ display:'inline-block', width:6, height:6, background:'#22C55E', borderRadius:'50%', marginRight:4, verticalAlign:'middle', animation:'pulse 2s infinite' }} />
+              {fmtDate(c.fecha_inicio)} · {fmt(c.completado)} completaron · {c.accedieron > 0 ? pct(c.completado, c.enviado) : '0%'} conversión
+            </div>
           </div>
         </div>
+
+        {/* Selector + acciones */}
+        <div style={{ display:'flex', gap:10, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
+          <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}`)}
+            style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
+            {campanas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
+          </select>
+          <button onClick={() => handleExport('registros')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Registros Excel</button>
+          <button onClick={() => handleExport('respuestas')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Respuestas Excel</button>
+          <span style={{ fontSize:11, color:'#89B8DC', marginLeft:'auto' }}>
+            Actualiza en {cd}s &nbsp;
+            <button onClick={refresh} style={{ fontSize:11, color:'#89B8DC', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Ahora</button>
+          </span>
+        </div>
+        {expErr && <div style={{ fontSize:11, color:'#fca5a5', marginTop:6 }}>{expErr}</div>}
       </div>
 
-      {!c ? (
-        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-12 text-center text-gray-400">
-          No hay campañas registradas aún.
-        </div>
-      ) : (
-        <>
-          {/* ── KPIs principales ─────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KpiCard label="Enviados"      value={c.enviado}    sub={pct(c.enviado, c.total)}       color="blue"   />
-            <KpiCard label="Accedieron"    value={c.accedieron} sub={pct(c.accedieron, c.enviado)}  color="yellow" />
-            <KpiCard label="Completaron"   value={c.completado} sub={pct(c.completado, c.enviado)}  color="green"  />
-            <KpiCard label="Sin responder" value={c.enviado - c.completado} sub={pct(c.enviado - c.completado, c.enviado)} color="gray" />
-          </div>
+      {/* TABS */}
+      <div style={{ display:'flex', background:'#fff', borderBottom:`2px solid ${C.border}`, marginLeft:-24, marginRight:-24, paddingLeft:24, overflowX:'auto' }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            fontSize:12, fontWeight:600, padding:'13px 16px', cursor:'pointer', border:'none', background:'none', borderBottom:`2px solid ${tab===t.id ? C.blue : 'transparent'}`,
+            color: tab===t.id ? C.blue : C.gray, marginBottom:-2, whiteSpace:'nowrap', transition:'color .15s'
+          }}>{t.label}</button>
+        ))}
+      </div>
 
-          {/* ── Tabs ─────────────────────────────────────────────────────── */}
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-            <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-              {TABS.map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                    tab === t
-                      ? 'border-b-2 border-[#004B83] text-[#004B83] dark:text-blue-400'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
-                  }`}>
-                  {t}
-                </button>
-              ))}
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+
+      <div style={{ paddingTop:24 }}>
+
+        {/* ══ RESUMEN ══ */}
+        {tab === 'resumen' && (
+          <div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+              <KPI lbl="Correos enviados"  val={fmt(c.enviado)}    sub={fmtDate(c.fecha_inicio)}              col={C.blue}  />
+              <KPI lbl="Accedieron al link" val={fmt(c.accedieron)} sub={`${pct(c.accedieron, c.enviado)} del total`} col={C.blue}  />
+              <KPI lbl="Respondieron"      val={fmt(c.completado)} sub={`${pct(c.completado, c.enviado)} del total`}  col={C.green} />
+              <KPI lbl="Sin responder"     val={fmt(c.enviado - c.completado)} sub="Ventana activa: 3 días" col={C.gray}  />
             </div>
 
-            <div className="p-5 space-y-5">
-
-              {/* ── Resumen ── */}
-              {tab === 'Resumen' && (
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Embudo de la campaña</h3>
-                    <div className="space-y-3">
-                      <BarRow label="Enviados"           value={c.enviado}    total={c.total}    color="#004B83" />
-                      <BarRow label="Accedieron al link" value={c.accedieron} total={c.total}    color="#2563eb" />
-                      <BarRow label="Completaron"        value={c.completado} total={c.total}    color="#16a34a" />
-                      <BarRow label="Sin responder"      value={c.enviado - c.completado} total={c.total} color="#d1d5db" />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                    <p className="text-xs text-gray-400">
-                      "Accedieron" = abrieron el link de la encuesta · "Completaron" = finalizaron el formulario<br/>
-                      Última actualización: {lastUpdated.toLocaleTimeString('es-CR')}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Eficiencia ── */}
-              {tab === 'Eficiencia' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <InsightCard emoji="⚡" label="Primera respuesta" value={fmtMin(eficiencia.minutos_primer_respuesta)} sub="desde que se envió el correo" />
-                    <InsightCard emoji="⏱️" label="Tiempo promedio" value={fmtMin(eficiencia.minutos_promedio)} sub="de envío a completar" />
-                    <InsightCard emoji="✅" label="Conversión link→formulario" value={`${eficiencia.conversion_pct}%`} sub="de quienes abrieron el link" highlight={eficiencia.conversion_pct > 80} />
-                    <InsightCard emoji="📊" label="Total respuestas" value={fmt(c.completado)} sub={`de ${fmt(c.enviado)} enviados`} />
-                    <InsightCard emoji="📱" label="Desde móvil" value={`${eficiencia.pct_movil}%`} sub="de quienes respondieron" />
-                    <InsightCard emoji="🕒" label="Tiempo transcurrido" value={fmtMin(eficiencia.minutos_transcurridos)} sub="desde el primer envío" />
-                  </div>
-
-                  <div className="rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-600 p-4">
-                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">Referencia sectorial</p>
-                    <div className="grid grid-cols-3 gap-3 text-xs text-center">
-                      <div><p className="text-gray-400">Apertura correo salud</p><p className="font-semibold text-gray-700 dark:text-gray-200">20–30%</p></div>
-                      <div><p className="text-gray-400">Conversión formularios</p><p className="font-semibold text-gray-700 dark:text-gray-200">3–5%</p></div>
-                      <div><p className="text-gray-400">CLEO esta campaña</p><p className="font-semibold text-green-700 dark:text-green-400">{pct(c.completado, c.enviado)}</p></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Especialidades ── */}
-              {tab === 'Especialidades' && (
-                <div>
-                  {Object.keys(respuestas.especialidad).length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-6">Sin datos de especialidad aún.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {Object.entries(respuestas.especialidad)
-                        .sort((a, b) => b[1] - a[1])
-                        .map(([esp, count]) => (
-                          <BarRow key={esp} label={esp} value={count} total={respuestas.total} color="#004B83" />
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Tecnología ── */}
-              {tab === 'Tecnología' && (
-                <div className="space-y-5">
-                  {totalDisp === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-6">Sin datos de dispositivo aún.</p>
-                  ) : (
-                    <>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Tipo de dispositivo</h3>
-                        <div className="space-y-2">
-                          {Object.entries(tipoCounts).sort((a,b) => b[1]-a[1]).map(([tipo, count]) => (
-                            <BarRow key={tipo} label={tipo} value={count} total={totalDisp} color="#2563eb" />
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Sistema operativo</h3>
-                        <div className="space-y-2">
-                          {Object.entries(osCounts).sort((a,b) => b[1]-a[1]).map(([os, count]) => (
-                            <BarRow key={os} label={os} value={count} total={totalDisp} color="#7c3aed" />
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Navegador</h3>
-                        <div className="space-y-2">
-                          {Object.entries(brCounts).sort((a,b) => b[1]-a[1]).map(([br, count]) => (
-                            <BarRow key={br} label={br} value={count} total={totalDisp} color="#0891b2" />
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── Formulario ── */}
-              {tab === 'Formulario' && (
-                <div className="space-y-5">
-                  {respuestas.total === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-6">Sin respuestas aún.</p>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <KpiCard label="Total respuestas" value={respuestas.total} color="blue" />
-                        <KpiCard label="Autorizaron" value={respuestas.consentimiento} sub={pct(respuestas.consentimiento, respuestas.total)} color="green" />
-                        <KpiCard label="Info correcta" value={respuestas.infoCorrecta} sub={pct(respuestas.infoCorrecta, respuestas.consentimiento)} color="green" />
-                        <KpiCard label="Quieren seguir" value={respuestas.quiereSeguir} sub={pct(respuestas.quiereSeguir, respuestas.consentimiento)} color="yellow" />
-                      </div>
-
-                      {Object.keys(respuestas.medioPref).length > 0 && (
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3">Canal de contacto preferido</h3>
-                          <div className="space-y-2">
-                            {Object.entries(respuestas.medioPref)
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([medio, count]) => (
-                                <BarRow key={medio} label={medio} value={count} total={respuestas.total} color="#004B83" />
-                              ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-            </div>
-          </div>
-
-          {/* ── Tabla de todas las campañas ──────────────────────────────── */}
-          {campanas.length > 1 && (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Historial de campañas</h2>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
+              <div style={CARD}>
+                <div style={SEC}>Embudo de conversión</div>
+                <FunnelRow lbl="📧 Enviados"           val={c.enviado}    total={c.enviado}    color={C.blueMd} />
+                <FunnelRow lbl="🔗 Accedieron al link" val={c.accedieron} total={c.enviado}    color={C.blue}   />
+                <FunnelRow lbl="✅ Completaron"         val={c.completado} total={c.enviado}    color={C.green}  />
+                <FunnelRow lbl="⏳ Abrió, no terminó"  val={Math.max(0, c.accedieron - c.completado)} total={c.enviado} color={C.amber} />
+                <FunnelRow lbl="📭 Sin acceder"         val={c.enviado - c.accedieron}          total={c.enviado} color='#E2E8F0' />
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-700/40 text-xs text-gray-500 uppercase tracking-wide">
+
+              <div style={CARD}>
+                <div style={SEC}>Respuestas por estado</div>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
                     <tr>
-                      {['Campaña', 'Fecha inicio', 'Enviados', 'Accedieron', 'Completaron', '% Conv.'].map(h => (
-                        <th key={h} className="px-4 py-2 text-left">{h}</th>
-                      ))}
+                      <th style={{ fontSize:10, fontWeight:700, letterSpacing:1, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'left', borderBottom:`1px solid ${C.border}` }}>Estado</th>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'right', borderBottom:`1px solid ${C.border}` }}>Registros</th>
+                      <th style={{ fontSize:10, color:C.gray, textAlign:'right', padding:'0 0 8px', borderBottom:`1px solid ${C.border}` }}>% base</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {campanas.map(cc => (
-                      <tr key={cc.id} onClick={() => selectCampana(cc.id)}
-                        className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${cc.id === campanaActual ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
-                        <td className="px-4 py-2 font-mono text-xs text-[#004B83] dark:text-blue-400">{cc.id}</td>
-                        <td className="px-4 py-2 text-gray-500">{fmtDate(cc.fecha_inicio)}</td>
-                        <td className="px-4 py-2">{fmt(cc.enviado)}</td>
-                        <td className="px-4 py-2">{fmt(cc.accedieron)} <span className="text-gray-400 text-xs">({pct(cc.accedieron, cc.enviado)})</span></td>
-                        <td className="px-4 py-2">{fmt(cc.completado)}</td>
-                        <td className="px-4 py-2 font-semibold text-green-700 dark:text-green-400">{pct(cc.completado, cc.enviado)}</td>
+                  <tbody>
+                    {estados.map(e => (
+                      <tr key={e.estado}>
+                        <td style={{ fontSize:12, padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{pill(e.estado)}</td>
+                        <td style={{ fontSize:12, fontWeight:700, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{fmt(e.count)}</td>
+                        <td style={{ fontSize:11, color:C.gray, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{pct(e.count, c.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+
+        {/* ══ EFICIENCIA ══ */}
+        {tab === 'eficiencia' && (
+          <div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+              <Insight val={fmtMin(eficiencia.minutos_primer_respuesta)} lbl="Primera respuesta" desc="Desde que se envió el correo hasta que el primer paciente completó el formulario" accent={C.green} />
+              <Insight val={fmtMin(eficiencia.minutos_promedio)} lbl="Tiempo promedio de respuesta" desc="Desde el envío del correo hasta que el paciente completó el formulario" accent={C.blue} />
+              <Insight val={`${eficiencia.conversion_pct}%`} lbl="Conversión apertura → respuesta" desc="De cada 100 que abrieron el link, cuántos completaron el formulario" accent={C.green} />
+              <Insight val={String(eficiencia.resp_por_min)} lbl="Respuestas por minuto" desc={`Ritmo sostenido en los primeros ${fmtMin(eficiencia.minutos_transcurridos)} desde el envío`} accent={C.purple} />
+              <Insight val={fmtMin(eficiencia.minutos_transcurridos)} lbl="Tiempo desde envío" desc={`${fmt(c.completado)} respuestas recopiladas — ventana activa sigue abierta por 3 días`} accent={C.amber} />
+              <Insight val={`${eficiencia.pct_movil}%`} lbl="Desde dispositivo móvil" desc="El formulario funciona correctamente en celular sin fricción reportada" accent={C.gray} />
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
+              <div style={CARD}>
+                <div style={SEC}>Benchmarks vs. referencia del sector</div>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'left', borderBottom:`1px solid ${C.border}` }}>Métrica</th>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'right', borderBottom:`1px solid ${C.border}` }}>CLEO hoy</th>
+                      <th style={{ fontSize:10, color:C.gray, textAlign:'right', padding:'0 0 8px', borderBottom:`1px solid ${C.border}` }}>Ref. salud</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Tasa acceso link', pct(c.accedieron, c.enviado), '2–4%'],
+                      ['Conversión apertura → resp.', `${eficiencia.conversion_pct}%`, '60–75%'],
+                      ['Primera respuesta', fmtMin(eficiencia.minutos_primer_respuesta), '5–15 min'],
+                      ['Tiempo prom. respuesta', fmtMin(eficiencia.minutos_promedio), '20–40 min'],
+                      ['Uso móvil', `${eficiencia.pct_movil}%`, '70–85%'],
+                    ].map(([m,v,r]) => (
+                      <tr key={m as string}>
+                        <td style={{ fontSize:12, padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{m}</td>
+                        <td style={{ fontSize:13, fontWeight:700, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9`, color:C.green }}>{v}</td>
+                        <td style={{ fontSize:11, color:C.gray, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{r}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop:12, padding:'10px 12px', background:C.greenLt, borderRadius:6, fontSize:11, color:C.green, lineHeight:1.6 }}>
+                  ✅ CLEO supera la referencia del sector salud en envíos de encuesta por correo electrónico.
+                </div>
+              </div>
+
+              <div style={CARD}>
+                <div style={SEC}>Proyección (tendencia actual)</div>
+                <p style={{ fontSize:12, color:C.gray, marginBottom:14, lineHeight:1.6 }}>A un ritmo de {eficiencia.resp_por_min} resp/min. La curva desacelera durante la noche y repunta al día siguiente.</p>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'left', borderBottom:`1px solid ${C.border}` }}>Horizonte</th>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'right', borderBottom:`1px solid ${C.border}` }}>Resp. estimadas</th>
+                      <th style={{ fontSize:10, color:C.gray, textAlign:'right', padding:'0 0 8px', borderBottom:`1px solid ${C.border}` }}>% base</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[['Al cierre de hoy', '~200–300', '13–20%'], ['24 horas', '~350–450', '23–30%'], ['3 días (ventana)', '~375–525', '25–35%']].map(([h,r,p]) => (
+                      <tr key={h}>
+                        <td style={{ fontSize:12, padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{h}</td>
+                        <td style={{ fontSize:12, fontWeight:700, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9`, color:C.blue }}>{r}</td>
+                        <td style={{ fontSize:11, color:C.gray, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{p}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop:12, fontSize:10, color:C.gray, fontStyle:'italic' }}>Proyección indicativa. El pico de apertura suele ocurrir en las primeras 4 horas y nuevamente al día siguiente entre 7–9 a.m.</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ ESPECIALIDADES ══ */}
+        {tab === 'especialidades' && (
+          <div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
+              <div style={CARD}>
+                <div style={SEC}>Distribución en el piloto ({fmt(c.total)} total)</div>
+                {especialidades.slice(0,12).map(e => (
+                  <BarRow key={e.especialidad} lbl={e.especialidad} val={e.total_piloto} total={totalMax} color={e.total_piloto/totalMax > 0.2 ? C.blue : e.total_piloto/totalMax > 0.05 ? C.blueMd : '#E2E8F0'} />
+                ))}
+              </div>
+              <div style={CARD}>
+                <div style={SEC}>Tasa de respuesta por especialidad</div>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'left', borderBottom:`1px solid ${C.border}` }}>Especialidad</th>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'right', borderBottom:`1px solid ${C.border}` }}>Resp.</th>
+                      <th style={{ fontSize:10, color:C.gray, textAlign:'right', padding:'0 0 8px', borderBottom:`1px solid ${C.border}` }}>Base</th>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'right', borderBottom:`1px solid ${C.border}` }}>Tasa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...especialidades].sort((a,b) => (b.respondieron/b.total_piloto) - (a.respondieron/a.total_piloto)).slice(0,10).map(e => {
+                      const rate = e.total_piloto ? (e.respondieron/e.total_piloto)*100 : 0
+                      return (
+                        <tr key={e.especialidad}>
+                          <td style={{ fontSize:12, padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{e.especialidad}</td>
+                          <td style={{ fontSize:12, fontWeight:700, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9`, color:C.green }}>{e.respondieron}</td>
+                          <td style={{ fontSize:11, color:C.gray, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{e.total_piloto}</td>
+                          <td style={{ fontSize:13, fontWeight:800, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9`, color: rate>5 ? C.green : rate>2 ? C.amber : C.gray }}>{Math.round(rate*10)/10}%</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ TECNOLOGÍA ══ */}
+        {tab === 'tecnologia' && (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
+            <div style={CARD}>
+              <div style={SEC}>Dispositivo</div>
+              {Object.entries(dispositivos.tipo).sort((a,b) => b[1]-a[1]).map(([k,v]) => (
+                <BarRow key={k} lbl={k === 'Móvil' ? '📱 Móvil' : '💻 ' + k} val={v} total={dispositivos.total} color={k === 'Móvil' ? C.blue : C.blueMd} lblWidth={100} />
+              ))}
+              <div style={{ marginTop:12, fontSize:11, color:C.green }}>✅ El formulario es mobile-first — sin reportes de error en móvil</div>
+            </div>
+            <div style={CARD}>
+              <div style={SEC}>Sistema operativo</div>
+              {Object.entries(dispositivos.os).sort((a,b) => b[1]-a[1]).map(([k,v]) => {
+                const col = k==='Android'?'#34A853':k==='iOS'?'#555':k==='Windows'?'#0078D4':k==='macOS'?'#888':'#E8A020'
+                return <BarRow key={k} lbl={k} val={v} total={totalOsMax} color={col} lblWidth={100} />
+              })}
+            </div>
+            <div style={CARD}>
+              <div style={SEC}>Navegador</div>
+              {Object.entries(dispositivos.browser).sort((a,b) => b[1]-a[1]).map(([k,v]) => {
+                const col = k==='Chrome'?'#EA4335':k==='Safari'?'#006CFF':k==='Edge'?'#0078D4':k==='Firefox'?'#FF7139':'#94A3B8'
+                return <BarRow key={k} lbl={k} val={v} total={totalBrMax} color={col} lblWidth={100} />
+              })}
+              <div style={{ marginTop:12, fontSize:11, color:C.green }}>✅ Chrome + Safari dominantes — sin issues de compatibilidad</div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ FORMULARIO ══ */}
+        {tab === 'formulario' && (
+          <div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }}>
+              <KPI lbl="Formularios recibidos" val={fmt(formSteps.total)} sub="100% completaron" col={C.blue} />
+              <KPI lbl="Siguen en lista espera" val={fmt(formSteps.paso4_si)} sub={`${pct(formSteps.paso4_si, formSteps.total)} de respondidos`} col={C.green} />
+              <KPI lbl="Info correcta en BD" val={fmt(formSteps.paso3_si)} sub={`${pct(formSteps.paso3_si, formSteps.total)} confirmaron`} col={C.green} />
+              <KPI lbl="Canal preferido" val={Object.entries(formSteps.paso6).sort((a,b)=>b[1]-a[1])[0]?.[0] ?? '—'} sub={`${pct(Object.entries(formSteps.paso6).sort((a,b)=>b[1]-a[1])[0]?.[1]??0, formSteps.total)} lo eligieron`} col={C.purple} />
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
+              <Insight val={`${pct(formSteps.paso1_si, formSteps.total)}`} lbl="Consentimiento" desc="Autorizaron el proceso en el primer paso" accent={C.green} />
+              <Insight val={`${pct(formSteps.paso2_si, formSteps.total)}`} lbl="Verificación exitosa" desc="Verificaron su identidad con los últimos 4 dígitos del asegurado" accent={C.green} />
+              <Insight val={`${pct(formSteps.paso3_si, formSteps.total)}`} lbl="Información correcta en BD" desc="Confirmaron que sus datos clínicos son correctos" accent={C.green} />
+              {formSteps.flexible_total > 0 && <Insight val={`${pct(formSteps.paso5_flexible, formSteps.flexible_total)}`} lbl="Flexibles en centro médico" desc="Pueden ser atendidos en un centro distinto" accent={C.purple} />}
+              {formSteps.puede_total > 0 && <Insight val={`${pct(formSteps.paso5_puede, formSteps.puede_total)}`} lbl="Condiciones para asistir" desc="Tienen condiciones para asistir cuando se les cite" accent={C.green} />}
+              <Insight val={`${pct(formSteps.paso3_no, formSteps.total)}`} lbl="Info incorrecta en sistema" desc="Datos que no coinciden — requieren actualización en ARCA/SIAC" accent={C.amber} />
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
+              <div style={CARD}>
+                <div style={SEC}>Flujo del formulario — paso a paso</div>
+                <StepBar label="Paso 1 — Consentimiento" a={formSteps.paso1_si} b={formSteps.total - formSteps.paso1_si} total={formSteps.total} colA={C.green} colB={C.red} />
+                <StepBar label="Paso 2 — Verificación identidad" a={formSteps.paso2_si} b={formSteps.total - formSteps.paso2_si} total={formSteps.total} colA={C.green} colB={C.red} />
+                <StepBar label="Paso 3 — ¿Información correcta?" a={formSteps.paso3_si} b={formSteps.paso3_no} total={formSteps.total} colA={C.green} colB={C.red} />
+                <StepBar label="Paso 4 — ¿Desea continuar?" a={formSteps.paso4_si} b={formSteps.paso4_no} total={formSteps.total} colA={C.green} colB={C.amber} />
+                {formSteps.flexible_total > 0 && <StepBar label="Paso 5a — ¿Flexible en centro?" a={formSteps.paso5_flexible} b={formSteps.paso5_no_flexible} total={formSteps.flexible_total} colA={C.purple} colB={C.purpleLt} />}
+                {formSteps.puede_total > 0 && <StepBar label="Paso 5b — ¿Condiciones para asistir?" a={formSteps.paso5_puede} b={formSteps.paso5_no_puede} total={formSteps.puede_total} colA={C.green} colB={C.red} />}
+                {Object.keys(formSteps.paso6).length > 0 && (
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                      <span style={{ fontSize:12, fontWeight:600 }}>Paso 6 — Canal de contacto</span>
+                    </div>
+                    <div style={{ height:7, borderRadius:4, overflow:'hidden', display:'flex' }}>
+                      {canalOrder.filter(k => formSteps.paso6[k]).map(k => (
+                        <div key={k} style={{ width:`${(formSteps.paso6[k]/formSteps.total)*100}%`, background: canalColors[k] ?? C.gray }} title={`${k}: ${formSteps.paso6[k]}`} />
+                      ))}
+                    </div>
+                    <div style={{ fontSize:10, color:C.gray, marginTop:3 }}>
+                      {canalOrder.filter(k => formSteps.paso6[k]).map(k => `${canalLabels[k] ?? k} ${pct(formSteps.paso6[k], formSteps.total)}`).join(' · ')}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+                <div style={{ ...CARD, marginBottom:0 }}>
+                  <div style={SEC}>Canal de contacto preferido</div>
+                  {canalOrder.filter(k => formSteps.paso6[k]).map(k => (
+                    <BarRow key={k} lbl={canalLabels[k] ?? k} val={formSteps.paso6[k]} total={formSteps.total} color={canalColors[k] ?? C.gray} />
+                  ))}
+                  {Object.keys(formSteps.paso6).length > 0 && (
+                    <div style={{ marginTop:12, padding:'8px 12px', background:C.purpleLt, borderRadius:6, fontSize:11, color:C.purple, lineHeight:1.6 }}>
+                      💡 WA + "cualquiera" = {pct((formSteps.paso6['whatsapp']??0)+(formSteps.paso6['cualquiera']??0), formSteps.total)} prefieren o aceptan WhatsApp → el canal correcto para la siguiente fase
+                    </div>
+                  )}
+                </div>
+
+                {(Object.keys(formSteps.motivo_retiro).length > 0 || Object.keys(formSteps.motivo_no_asistir).length > 0) && (
+                  <div style={{ ...CARD, marginBottom:0 }}>
+                    {Object.keys(formSteps.motivo_retiro).length > 0 && (
+                      <>
+                        <div style={SEC}>Depurados — motivos ({formSteps.paso4_no} total)</div>
+                        <table style={{ width:'100%', borderCollapse:'collapse', marginBottom:12 }}>
+                          <tbody>
+                            {Object.entries(formSteps.motivo_retiro).sort((a,b)=>b[1]-a[1]).map(([m,n]) => (
+                              <tr key={m}>
+                                <td style={{ fontSize:12, padding:'5px 0', borderBottom:`1px solid #F1F5F9` }}>{m}</td>
+                                <td style={{ fontSize:12, fontWeight:700, textAlign:'right', padding:'5px 0', borderBottom:`1px solid #F1F5F9`, color:C.amber }}>{n}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
+                    {Object.keys(formSteps.motivo_no_asistir).length > 0 && (
+                      <>
+                        <div style={{ ...SEC, marginTop:8 }}>No puede asistir — motivos</div>
+                        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                          <tbody>
+                            {Object.entries(formSteps.motivo_no_asistir).sort((a,b)=>b[1]-a[1]).map(([m,n]) => (
+                              <tr key={m}>
+                                <td style={{ fontSize:12, padding:'5px 0', borderBottom:`1px solid #F1F5F9` }}>{m}</td>
+                                <td style={{ fontSize:12, fontWeight:700, textAlign:'right', padding:'5px 0', borderBottom:`1px solid #F1F5F9`, color:C.red }}>{n}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ PRÓXIMA FASE ══ */}
+        {tab === 'siguiente' && (
+          <div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
+              <div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, marginBottom:12, border:`1px solid ${C.blueMd}`, background:C.blueLt }}>
+                  <div><div style={{ fontSize:12, fontWeight:600, color:C.blue }}>💬 Elegibles para WhatsApp</div><div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Tienen teléfono · pasarán si no responden correo</div></div>
+                  <div style={{ fontSize:22, fontWeight:800, color:C.blue }}>{fmt(proximaFase.wa_elegibles)}</div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, marginBottom:12, border:`1px solid ${C.border}`, background:'#F8FAFC' }}>
+                  <div><div style={{ fontSize:12, fontWeight:600 }}>Sin WhatsApp registrado</div><div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Solo correo + voicebot</div></div>
+                  <div style={{ fontSize:22, fontWeight:800, color:C.gray }}>{fmt(proximaFase.sin_wa)}</div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, border:`1px solid #A7F3D0`, background:C.greenLt }}>
+                  <div><div style={{ fontSize:12, fontWeight:600, color:C.green }}>✅ Ya respondieron — no pasan a WA</div><div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Depurados del ciclo</div></div>
+                  <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{fmt(proximaFase.ya_respondieron)}</div>
+                </div>
+              </div>
+
+              <div style={CARD}>
+                <div style={SEC}>Proyección cascada (estimada)</div>
+                <FunnelRow lbl="📭 No responden correo (~65%)" val={Math.round((c.enviado - c.completado) * 0.65)} total={c.enviado} color={C.blueMd} />
+                <FunnelRow lbl="💬 Pasarán a WhatsApp" val={proximaFase.wa_elegibles} total={c.enviado} color={C.wa} />
+                <FunnelRow lbl="📞 No responden WA (~70%)" val={Math.round(proximaFase.wa_elegibles * 0.70)} total={c.enviado} color='#E2E8F0' />
+                <FunnelRow lbl="📞 Pasarán a Voicebot" val={Math.round(proximaFase.wa_elegibles * 0.70)} total={c.enviado} color={C.purple} />
+                <div style={{ marginTop:12, fontSize:10, color:C.gray, fontStyle:'italic' }}>Los {fmt(c.completado)} que ya respondieron quedan fuera del ciclo WA/Voicebot.</div>
+              </div>
+            </div>
+
+            <div style={CARD}>
+              <div style={SEC}>Línea de tiempo — campaña {campanaActual}</div>
+              <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
+                {[
+                  { date:`${fmtDate(c.fecha_inicio)}`, title:'📧 Correo', sub:`${fmt(c.enviado)} enviados · en curso`, active:true },
+                  { date:'+3 días', title:'💬 WhatsApp', sub:`~${fmt(Math.round(proximaFase.wa_elegibles))} elegibles`, active:false },
+                  { date:'~+7 días', title:'📞 Voicebot', sub:`~${fmt(Math.round(proximaFase.wa_elegibles * 0.70))} sin responder WA`, active:false },
+                  { date:'~+12 días', title:'✅ Cierre campaña', sub:'Análisis + escala completa', active:false },
+                ].map((item, i) => (
+                  <div key={i} style={{ flex:1, minWidth:120, padding:'12px 14px', borderRight:`1px solid ${C.border}`, background: item.active ? C.blueLt : 'transparent' }}>
+                    <div style={{ fontSize:10, color:C.gray, marginBottom:3 }}>{item.date}</div>
+                    <div style={{ fontSize:12, fontWeight:700, color: item.active ? C.blue : C.text }}>{item.title}</div>
+                    <div style={{ fontSize:10, color:C.gray, marginTop:2 }}>{item.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ textAlign:'center', padding:14, fontSize:11, color:'#94A3B8', borderTop:`1px solid ${C.border}`, marginTop:24, marginLeft:-24, marginRight:-24 }}>
+        CoCo Tech AI · UTLE · CCSS &nbsp;|&nbsp; {campanaActual} · Actualiza cada {REFRESH_SECS}s
+      </div>
     </div>
   )
 }

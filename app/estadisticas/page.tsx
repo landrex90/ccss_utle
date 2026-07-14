@@ -3,241 +3,301 @@ import CampaignDashboard from './CampaignDashboard'
 
 export const dynamic = 'force-dynamic'
 
+// ── Tipos ──────────────────────────────────────────────────────────────────────
 export interface CampanaInfo {
   id: string
   total: number
   enviado: number
-  accedieron: number   // primer_acceso_at IS NOT NULL (proxy "abrieron link")
+  accedieron: number
   completado: number
   fecha_inicio: string | null
 }
 
-export interface DispositivoBreakdown {
-  tipo: string   // Móvil / Escritorio
-  os: string     // Android / iOS / Windows / macOS
-  browser: string
-  count: number
-}
+export interface EstadoRow { estado: string; count: number }
 
 export interface EficienciaData {
   minutos_primer_respuesta: number | null
   minutos_promedio: number | null
-  conversion_pct: number  // completaron / accedieron
+  conversion_pct: number
+  resp_por_min: number
   minutos_transcurridos: number | null
   pct_movil: number
 }
 
-export interface RespuestasStats {
+export interface EspecialidadRow {
+  especialidad: string
+  total_piloto: number
+  respondieron: number
+}
+
+export interface DispositivoData {
+  tipo:    Record<string, number>
+  os:      Record<string, number>
+  browser: Record<string, number>
+  total:   number
+}
+
+export interface FormSteps {
   total: number
-  consentimiento: number
-  verificacion: number
-  infoCorrecta: number
-  quiereSeguir: number
-  medioPref: Record<string, number>
-  especialidad: Record<string, number>
+  paso1_si: number
+  paso2_si: number
+  paso3_si: number
+  paso3_no: number
+  paso4_si: number
+  paso4_no: number
+  paso5_flexible: number
+  paso5_no_flexible: number
+  paso5_puede: number
+  paso5_no_puede: number
+  paso6: Record<string, number>
+  motivo_retiro: Record<string, number>
+  motivo_no_asistir: Record<string, number>
+  flexible_total: number
+  puede_total: number
+}
+
+export interface ProximaFaseData {
+  wa_elegibles: number
+  sin_wa: number
+  ya_respondieron: number
+}
+
+// ── Helpers de paginación ──────────────────────────────────────────────────────
+async function paginateRegistros(sb: ReturnType<typeof createClient>, campanaId: string, columns: string) {
+  const rows: Record<string, unknown>[] = []
+  let from = 0
+  while (true) {
+    const { data } = await sb.from('registros').select(columns)
+      .eq('encuesta_campana_id', campanaId).range(from, from + 999)
+    if (!data || data.length === 0) break
+    rows.push(...(data as unknown as Record<string, unknown>[]))
+    if (data.length < 1000) break
+    from += 1000
+  }
+  return rows
+}
+
+async function paginateRespuestas(sb: ReturnType<typeof createClient>, ids: string[], columns: string) {
+  const rows: Record<string, unknown>[] = []
+  let from = 0
+  while (true) {
+    const { data } = await sb.from('respuestas').select(columns)
+      .in('id_registro', ids).range(from, from + 999)
+    if (!data || data.length === 0) break
+    rows.push(...(data as unknown as Record<string, unknown>[]))
+    if (data.length < 1000) break
+    from += 1000
+  }
+  return rows
 }
 
 // ── Queries ────────────────────────────────────────────────────────────────────
 async function getCampanas(): Promise<CampanaInfo[]> {
   const sb = createClient()
-
-  const { data: ids } = await sb
-    .from('registros')
-    .select('encuesta_campana_id')
-    .not('encuesta_campana_id', 'is', null)
-
+  const { data: ids } = await sb.from('registros').select('encuesta_campana_id').not('encuesta_campana_id', 'is', null)
   if (!ids || ids.length === 0) return []
-
   const uniqueIds = Array.from(new Set(ids.map(r => r.encuesta_campana_id as string)))
 
-  const campanas: CampanaInfo[] = await Promise.all(
-    uniqueIds.map(async (campanaId) => {
-      const [
-        { count: total },
-        { count: enviado },
-        { count: accedieron },
-        { count: completado },
-        { data: fechaRow },
-      ] = await Promise.all([
-        sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', campanaId),
-        sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', campanaId).eq('correo_estado', 'enviado'),
-        sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', campanaId).not('primer_acceso_at', 'is', null),
-        sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', campanaId).not('encuesta_completada_at', 'is', null),
-        sb.from('registros').select('correo_enviado_at').eq('encuesta_campana_id', campanaId).not('correo_enviado_at', 'is', null).order('correo_enviado_at', { ascending: true }).limit(1),
-      ])
-
-      return {
-        id: campanaId,
-        total:      total      ?? 0,
-        enviado:    enviado    ?? 0,
-        accedieron: accedieron ?? 0,
-        completado: completado ?? 0,
-        fecha_inicio: fechaRow?.[0]?.correo_enviado_at ?? null,
-      }
-    })
-  )
-
+  const campanas = await Promise.all(uniqueIds.map(async id => {
+    const [{ count: total }, { count: enviado }, { count: accedieron }, { count: completado }, { data: f }] = await Promise.all([
+      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id),
+      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id).eq('correo_estado', 'enviado'),
+      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id).not('primer_acceso_at', 'is', null),
+      sb.from('registros').select('*', { count: 'exact', head: true }).eq('encuesta_campana_id', id).not('encuesta_completada_at', 'is', null),
+      sb.from('registros').select('correo_enviado_at').eq('encuesta_campana_id', id).not('correo_enviado_at', 'is', null).order('correo_enviado_at', { ascending: true }).limit(1),
+    ])
+    return { id, total: total ?? 0, enviado: enviado ?? 0, accedieron: accedieron ?? 0, completado: completado ?? 0, fecha_inicio: f?.[0]?.correo_enviado_at ?? null }
+  }))
   return campanas.sort((a, b) => (b.fecha_inicio ?? '').localeCompare(a.fecha_inicio ?? ''))
 }
 
-async function getEficiencia(campanaId: string, c: CampanaInfo): Promise<EficienciaData> {
-  const sb = createClient()
+async function getEstados(sb: ReturnType<typeof createClient>, campanaId: string): Promise<EstadoRow[]> {
+  const rows = await paginateRegistros(sb, campanaId, 'estado')
+  const map: Record<string, number> = {}
+  for (const r of rows) {
+    const e = (r.estado as string) ?? 'DESCONOCIDO'
+    map[e] = (map[e] ?? 0) + 1
+  }
+  return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([estado, count]) => ({ estado, count }))
+}
 
-  // Primera y promedio de tiempo: busca registros con encuesta completada y correo enviado
-  const { data: tiempos } = await sb
-    .from('registros')
-    .select('correo_enviado_at, encuesta_completada_at, primer_acceso_dispositivo')
+async function getEficiencia(sb: ReturnType<typeof createClient>, campanaId: string, c: CampanaInfo): Promise<EficienciaData> {
+  const { data: tiempos } = await sb.from('registros')
+    .select('correo_enviado_at,encuesta_completada_at,primer_acceso_dispositivo')
     .eq('encuesta_campana_id', campanaId)
     .not('encuesta_completada_at', 'is', null)
     .not('correo_enviado_at', 'is', null)
-    .limit(1000)
+    .limit(2000)
 
   let minutos_primer_respuesta: number | null = null
   let minutos_promedio: number | null = null
   let pct_movil = 0
+  let resp_por_min = 0
 
   if (tiempos && tiempos.length > 0) {
-    const diffs = tiempos
-      .map(r => {
-        const enviado    = new Date(r.correo_enviado_at as string).getTime()
-        const completado = new Date(r.encuesta_completada_at as string).getTime()
-        return (completado - enviado) / 60000
-      })
-      .filter(d => d > 0 && d < 10080) // ignorar outliers >7 días
-
+    const diffs = tiempos.map(r => (new Date(r.encuesta_completada_at as string).getTime() - new Date(r.correo_enviado_at as string).getTime()) / 60000)
+      .filter(d => d > 0 && d < 10080)
     if (diffs.length > 0) {
       minutos_primer_respuesta = Math.round(Math.min(...diffs))
       minutos_promedio = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length)
     }
-
-    const moviles = tiempos.filter(r =>
-      typeof r.primer_acceso_dispositivo === 'string' &&
-      (r.primer_acceso_dispositivo as string).startsWith('Móvil')
-    ).length
-    pct_movil = tiempos.length > 0 ? Math.round((moviles / tiempos.length) * 100) : 0
+    const moviles = tiempos.filter(r => typeof r.primer_acceso_dispositivo === 'string' && (r.primer_acceso_dispositivo as string).startsWith('Móvil')).length
+    pct_movil = Math.round((moviles / tiempos.length) * 100)
   }
 
-  // Tiempo transcurrido desde primer envío
   let minutos_transcurridos: number | null = null
   if (c.fecha_inicio) {
     minutos_transcurridos = Math.round((Date.now() - new Date(c.fecha_inicio).getTime()) / 60000)
-  }
-
-  const conversion_pct = c.accedieron > 0
-    ? Math.round((c.completado / c.accedieron) * 100)
-    : 0
-
-  return { minutos_primer_respuesta, minutos_promedio, conversion_pct, minutos_transcurridos, pct_movil }
-}
-
-async function getDispositivos(campanaId: string): Promise<DispositivoBreakdown[]> {
-  const sb = createClient()
-
-  const { data } = await sb
-    .from('registros')
-    .select('primer_acceso_dispositivo')
-    .eq('encuesta_campana_id', campanaId)
-    .not('primer_acceso_dispositivo', 'is', null)
-
-  const map = new Map<string, number>()
-  for (const r of data ?? []) {
-    const d = r.primer_acceso_dispositivo as string
-    map.set(d, (map.get(d) ?? 0) + 1)
-  }
-
-  return Array.from(map.entries())
-    .map(([key, count]) => {
-      const parts = key.split(' / ')
-      return { tipo: parts[0] ?? '', os: parts[1] ?? '', browser: parts[2] ?? '', count }
-    })
-    .sort((a, b) => b.count - a.count)
-}
-
-async function getRespuestasStats(campanaId: string): Promise<RespuestasStats> {
-  const sb = createClient()
-
-  const { data: regIds } = await sb
-    .from('registros')
-    .select('id_registro')
-    .eq('encuesta_campana_id', campanaId)
-
-  const ids = (regIds ?? []).map(r => r.id_registro as string)
-  if (ids.length === 0) {
-    return { total: 0, consentimiento: 0, verificacion: 0, infoCorrecta: 0, quiereSeguir: 0, medioPref: {}, especialidad: {} }
-  }
-
-  const allRespuestas: Array<Record<string, unknown>> = []
-  const pageSize = 1000
-  let from = 0
-  while (true) {
-    const { data } = await sb
-      .from('respuestas')
-      .select('paso_1_consentimiento,paso_2_verificacion,paso_3_info_correcta,paso_4_quiere_seguir,paso_6_medio_contacto,id_registro')
-      .in('id_registro', ids)
-      .range(from, from + pageSize - 1)
-    if (!data || data.length === 0) break
-    allRespuestas.push(...data)
-    if (data.length < pageSize) break
-    from += pageSize
-  }
-
-  const total = allRespuestas.length
-  let consentimiento = 0, verificacion = 0, infoCorrecta = 0, quiereSeguir = 0
-  const medioPref: Record<string, number> = {}
-
-  for (const r of allRespuestas) {
-    if (r.paso_1_consentimiento === 'si') consentimiento++
-    if (r.paso_2_verificacion   === 'si') verificacion++
-    if (r.paso_3_info_correcta  === 'si') infoCorrecta++
-    if (r.paso_4_quiere_seguir  === 'si') quiereSeguir++
-    const medio = (r.paso_6_medio_contacto as string) ?? 'Sin respuesta'
-    medioPref[medio] = (medioPref[medio] ?? 0) + 1
-  }
-
-  // Especialidades de quienes respondieron
-  const idsResp = allRespuestas.map(r => r.id_registro as string).filter(Boolean)
-  const especialidad: Record<string, number> = {}
-  if (idsResp.length > 0) {
-    const { data: regs } = await sb.from('registros').select('especialidad').in('id_registro', idsResp)
-    for (const reg of regs ?? []) {
-      const esp = (reg.especialidad as string) ?? 'Sin datos'
-      especialidad[esp] = (especialidad[esp] ?? 0) + 1
+    if (minutos_transcurridos > 0 && c.completado > 0) {
+      resp_por_min = Math.round((c.completado / minutos_transcurridos) * 100) / 100
     }
   }
 
-  return { total, consentimiento, verificacion, infoCorrecta, quiereSeguir, medioPref, especialidad }
+  const conversion_pct = c.accedieron > 0 ? Math.round((c.completado / c.accedieron) * 100) : 0
+  return { minutos_primer_respuesta, minutos_promedio, conversion_pct, resp_por_min, minutos_transcurridos, pct_movil }
+}
+
+async function getEspecialidades(sb: ReturnType<typeof createClient>, campanaId: string): Promise<EspecialidadRow[]> {
+  const todos = await paginateRegistros(sb, campanaId, 'id_registro,especialidad,encuesta_completada_at')
+  const map: Record<string, { total: number; resp: number }> = {}
+  for (const r of todos) {
+    const esp = (r.especialidad as string) ?? 'Sin datos'
+    if (!map[esp]) map[esp] = { total: 0, resp: 0 }
+    map[esp].total++
+    if (r.encuesta_completada_at) map[esp].resp++
+  }
+  return Object.entries(map).sort((a, b) => b[1].total - a[1].total)
+    .map(([especialidad, v]) => ({ especialidad, total_piloto: v.total, respondieron: v.resp }))
+}
+
+async function getDispositivos(sb: ReturnType<typeof createClient>, campanaId: string): Promise<DispositivoData> {
+  const { data } = await sb.from('registros').select('primer_acceso_dispositivo')
+    .eq('encuesta_campana_id', campanaId).not('primer_acceso_dispositivo', 'is', null)
+  const tipo: Record<string, number> = {}
+  const os:   Record<string, number> = {}
+  const browser: Record<string, number> = {}
+  let total = 0
+  for (const r of data ?? []) {
+    const d = (r.primer_acceso_dispositivo as string).split(' / ')
+    const t = d[0] ?? 'Desconocido'
+    const o = d[1] ?? 'Desconocido'
+    const b = d[2] ?? 'Desconocido'
+    tipo[t]    = (tipo[t]    ?? 0) + 1
+    os[o]      = (os[o]      ?? 0) + 1
+    browser[b] = (browser[b] ?? 0) + 1
+    total++
+  }
+  return { tipo, os, browser, total }
+}
+
+async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: string): Promise<FormSteps> {
+  const { data: ids } = await sb.from('registros').select('id_registro').eq('encuesta_campana_id', campanaId)
+  const idList = (ids ?? []).map(r => r.id_registro as string)
+  if (!idList.length) return { total:0, paso1_si:0, paso2_si:0, paso3_si:0, paso3_no:0, paso4_si:0, paso4_no:0, paso5_flexible:0, paso5_no_flexible:0, paso5_puede:0, paso5_no_puede:0, paso6:{}, motivo_retiro:{}, motivo_no_asistir:{}, flexible_total:0, puede_total:0 }
+
+  const rows = await paginateRespuestas(sb, idList,
+    'paso_1_consentimiento,paso_2_verificacion,paso_3_info_correcta,paso_4_quiere_seguir,paso_5_flexible_centro,paso_5_puede_asistir,paso_5_motivo,paso_5_motivo_no_asistir,paso_6_medio_contacto'
+  )
+
+  let paso1_si=0, paso2_si=0, paso3_si=0, paso3_no=0, paso4_si=0, paso4_no=0
+  let paso5_flexible=0, paso5_no_flexible=0, paso5_puede=0, paso5_no_puede=0
+  let flexible_total=0, puede_total=0
+  const paso6: Record<string, number> = {}
+  const motivo_retiro: Record<string, number> = {}
+  const motivo_no_asistir: Record<string, number> = {}
+
+  for (const r of rows) {
+    if (r.paso_1_consentimiento === 'si') paso1_si++
+    if (r.paso_2_verificacion   === 'si') paso2_si++
+    if (r.paso_3_info_correcta  === 'si') paso3_si++
+    else if (r.paso_3_info_correcta === 'no') paso3_no++
+    if (r.paso_4_quiere_seguir  === 'si') {
+      paso4_si++
+      if (r.paso_5_flexible_centro !== undefined && r.paso_5_flexible_centro !== null) {
+        flexible_total++
+        if (r.paso_5_flexible_centro === 'si') paso5_flexible++
+        else paso5_no_flexible++
+      }
+      if (r.paso_5_puede_asistir !== undefined && r.paso_5_puede_asistir !== null) {
+        puede_total++
+        if (r.paso_5_puede_asistir === 'si') paso5_puede++
+        else paso5_no_puede++
+      }
+    } else if (r.paso_4_quiere_seguir === 'no') {
+      paso4_no++
+      const m = (r.paso_5_motivo as string) ?? 'Sin especificar'
+      if (m) motivo_retiro[m] = (motivo_retiro[m] ?? 0) + 1
+    }
+    if (r.paso_5_motivo_no_asistir) {
+      const m = r.paso_5_motivo_no_asistir as string
+      motivo_no_asistir[m] = (motivo_no_asistir[m] ?? 0) + 1
+    }
+    const medio = (r.paso_6_medio_contacto as string) ?? null
+    if (medio) paso6[medio] = (paso6[medio] ?? 0) + 1
+  }
+
+  return { total: rows.length, paso1_si, paso2_si, paso3_si, paso3_no, paso4_si, paso4_no, paso5_flexible, paso5_no_flexible, paso5_puede, paso5_no_puede, paso6, motivo_retiro, motivo_no_asistir, flexible_total, puede_total }
+}
+
+async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: string, completado: number): Promise<ProximaFaseData> {
+  const { count: wa_elegibles } = await sb.from('registros')
+    .select('*', { count: 'exact', head: true })
+    .eq('encuesta_campana_id', campanaId)
+    .not('encuesta_completada_at', 'is', null).is('encuesta_completada_at', null)  // pendientes
+
+  // Pendientes con WA: tienen telefono/whatsapp y no han completado
+  const { count: con_wa } = await sb.from('registros')
+    .select('*', { count: 'exact', head: true })
+    .eq('encuesta_campana_id', campanaId)
+    .is('encuesta_completada_at', null)
+    .not('whatsapp', 'is', null)
+
+  const { count: sin_wa } = await sb.from('registros')
+    .select('*', { count: 'exact', head: true })
+    .eq('encuesta_campana_id', campanaId)
+    .is('encuesta_completada_at', null)
+    .is('whatsapp', null)
+
+  return {
+    wa_elegibles: con_wa ?? 0,
+    sin_wa:       sin_wa ?? 0,
+    ya_respondieron: completado,
+  }
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────
-interface Props {
-  searchParams: { campana?: string }
-}
+interface Props { searchParams: { campana?: string } }
 
 export default async function EstadisticasPage({ searchParams }: Props) {
-  const campanas      = await getCampanas()
+  const sb = createClient()
+  const campanas     = await getCampanas()
   const campanaActual = searchParams.campana ?? campanas[0]?.id ?? null
-  const campanaInfo   = campanas.find(c => c.id === campanaActual) ?? null
+  const campanaInfo  = campanas.find(c => c.id === campanaActual) ?? null
 
-  const [eficiencia, dispositivos, respuestas] = campanaInfo
-    ? await Promise.all([
-        getEficiencia(campanaActual!, campanaInfo),
-        getDispositivos(campanaActual!),
-        getRespuestasStats(campanaActual!),
-      ])
-    : [
-        { minutos_primer_respuesta: null, minutos_promedio: null, conversion_pct: 0, minutos_transcurridos: null, pct_movil: 0 },
-        [] as DispositivoBreakdown[],
-        { total: 0, consentimiento: 0, verificacion: 0, infoCorrecta: 0, quiereSeguir: 0, medioPref: {}, especialidad: {} } as RespuestasStats,
-      ]
+  if (!campanaInfo || !campanaActual) {
+    return <div className="p-8 text-gray-500 text-center">No hay campañas registradas aún.</div>
+  }
+
+  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase] = await Promise.all([
+    getEstados(sb, campanaActual),
+    getEficiencia(sb, campanaActual, campanaInfo),
+    getEspecialidades(sb, campanaActual),
+    getDispositivos(sb, campanaActual),
+    getFormSteps(sb, campanaActual),
+    getProximaFase(sb, campanaActual, campanaInfo.completado),
+  ])
 
   return (
     <CampaignDashboard
       campanas={campanas}
       campanaActual={campanaActual}
       campanaInfo={campanaInfo}
+      estados={estados}
       eficiencia={eficiencia}
+      especialidades={especialidades}
       dispositivos={dispositivos}
-      respuestas={respuestas}
+      formSteps={formSteps}
+      proximaFase={proximaFase}
     />
   )
 }
