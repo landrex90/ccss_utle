@@ -212,8 +212,8 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
   const motivo_no_asistir: Record<string, number> = {}
 
   for (const r of rows) {
-    if (r.paso_1_consentimiento    === 'si') paso1_si++
-    if (r.paso_2_verificacion      === 'si') paso2_si++
+    if (r.paso_1_consentimiento    === 'si_autorizo') paso1_si++
+    if (r.paso_2_verificacion      === 'exitosa') paso2_si++
     if (r.paso_3_info_correcta     === 'si') paso3_si++
     else if (r.paso_3_info_correcta === 'no') paso3_no++
     if (r.paso_4_desea_continuar   === 'si') {
@@ -228,7 +228,7 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
         if (r.paso_5b_condiciones_asistir === 'si') paso5_puede++
         else paso5_no_puede++
       }
-    } else if (r.paso_4_desea_continuar === 'no') {
+    } else if (r.paso_4_desea_continuar === 'no_ya_no_deseo' || r.paso_4_desea_continuar === 'no_asegurado') {
       paso4_no++
       const m = (r.motivo_retiro as string) ?? 'Sin especificar'
       if (m) motivo_retiro[m] = (motivo_retiro[m] ?? 0) + 1
