@@ -131,12 +131,28 @@ const TABS: { id: Tab; label: string }[] = [
   { id:'siguiente',     label:'💬 Próxima fase'         },
 ]
 
+type TipoFiltro = 'Todos' | 'Cirugía' | 'CE' | 'Procedimientos'
+const TIPOS: TipoFiltro[] = ['Todos', 'Cirugía', 'CE', 'Procedimientos']
+
+function getTipo(id: string): TipoFiltro {
+  const u = id.toUpperCase()
+  if (u.includes('CIRUGIA'))        return 'Cirugía'
+  if (u.includes('_CE') || u.includes('-CE') || u.includes('CONSULTA')) return 'CE'
+  if (u.includes('PROCEDIMIENTO'))  return 'Procedimientos'
+  return 'Todos'
+}
+
 export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase }: Props) {
   const router = useRouter()
-  const [tab, setTab]     = useState<Tab>('resumen')
-  const [cd, setCd]       = useState(REFRESH_SECS)
-  const [exp, setExp]     = useState(false)
+  const [tab, setTab]       = useState<Tab>('resumen')
+  const [cd, setCd]         = useState(REFRESH_SECS)
+  const [exp, setExp]       = useState(false)
   const [expErr, setExpErr] = useState('')
+  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('Todos')
+
+  const campanasFiltradas = tipoFiltro === 'Todos'
+    ? campanas
+    : campanas.filter(cc => getTipo(cc.id) === tipoFiltro)
 
   const refresh = useCallback(() => { router.refresh(); setCd(REFRESH_SECS) }, [router])
   useEffect(() => {
@@ -185,11 +201,25 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
           </div>
         </div>
 
-        {/* Selector + acciones */}
-        <div style={{ display:'flex', gap:10, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
+        {/* Filtro por tipo + Selector + acciones */}
+        <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
+          {TIPOS.map(t => (
+            <button key={t} onClick={() => {
+              setTipoFiltro(t)
+              const filtered = t === 'Todos' ? campanas : campanas.filter(cc => getTipo(cc.id) === t)
+              if (filtered.length > 0 && !filtered.find(cc => cc.id === campanaActual)) {
+                router.push(`/estadisticas?campana=${encodeURIComponent(filtered[0].id)}`)
+              }
+            }} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, cursor:'pointer', border:'1px solid rgba(255,255,255,.35)',
+              background: tipoFiltro === t ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.08)',
+              color: tipoFiltro === t ? '#fff' : '#89B8DC', fontWeight: tipoFiltro === t ? 700 : 400 }}>
+              {t}
+            </button>
+          ))}
+          <div style={{ width:1, height:18, background:'rgba(255,255,255,.2)', margin:'0 2px' }} />
           <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}`)}
             style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
-            {campanas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
+            {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
           </select>
           <button onClick={() => handleExport('registros')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Registros Excel</button>
           <button onClick={() => handleExport('respuestas')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Respuestas Excel</button>
