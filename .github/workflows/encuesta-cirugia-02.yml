@@ -1,0 +1,45 @@
+name: Encuesta CIRUGIA-02 — Cirugía restante
+
+on:
+  schedule:
+    # Jueves 17 julio 2026 a las 8:00am Costa Rica (UTC-6 = 14:00 UTC)
+    - cron: '0 14 17 7 *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no envía correos, solo muestra cuántos se enviarían)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar envío Cirugía restante
+        run: |
+          ARGS="--campana ENCUESTA-CIRUGIA-02 --tipo cirugia"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+            echo "⚠️  DRY RUN activado — no se enviarán correos"
+          fi
+          node scripts/_encuesta-send.js $ARGS
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
