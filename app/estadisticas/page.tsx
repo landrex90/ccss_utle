@@ -78,15 +78,20 @@ async function paginateRegistros(sb: ReturnType<typeof createClient>, campanaId:
 }
 
 async function paginateRespuestas(sb: ReturnType<typeof createClient>, ids: string[], columns: string) {
+  if (ids.length === 0) return []
   const rows: Record<string, unknown>[] = []
-  let from = 0
-  while (true) {
-    const { data } = await sb.from('respuestas').select(columns)
-      .in('id_registro', ids).range(from, from + 999)
-    if (!data || data.length === 0) break
-    rows.push(...(data as unknown as Record<string, unknown>[]))
-    if (data.length < 1000) break
-    from += 1000
+  const CHUNK = 200  // avoid PostgREST URL length limit with large IN clauses
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const chunk = ids.slice(i, i + CHUNK)
+    let from = 0
+    while (true) {
+      const { data } = await sb.from('respuestas').select(columns)
+        .in('id_registro', chunk).range(from, from + 999)
+      if (!data || data.length === 0) break
+      rows.push(...(data as unknown as Record<string, unknown>[]))
+      if (data.length < 1000) break
+      from += 1000
+    }
   }
   return rows
 }
@@ -191,8 +196,8 @@ async function getDispositivos(sb: ReturnType<typeof createClient>, campanaId: s
 }
 
 async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: string): Promise<FormSteps> {
-  const { data: ids } = await sb.from('registros').select('id_registro').eq('encuesta_campana_id', campanaId)
-  const idList = (ids ?? []).map(r => r.id_registro as string)
+  const idRows = await paginateRegistros(sb, campanaId, 'id_registro')
+  const idList = idRows.map(r => r.id_registro as string)
   if (!idList.length) return { total:0, paso1_si:0, paso2_si:0, paso3_si:0, paso3_no:0, paso4_si:0, paso4_no:0, paso5_flexible:0, paso5_no_flexible:0, paso5_puede:0, paso5_no_puede:0, paso6:{}, motivo_retiro:{}, motivo_no_asistir:{}, flexible_total:0, puede_total:0 }
 
   const rows = await paginateRespuestas(sb, idList,
@@ -240,27 +245,23 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
 }
 
 async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: string, completado: number): Promise<ProximaFaseData> {
-  const { count: wa_elegibles } = await sb.from('registros')
-    .select('*', { count: 'exact', head: true })
-    .eq('encuesta_campana_id', campanaId)
-    .not('encuesta_completada_at', 'is', null).is('encuesta_completada_at', null)  // pendientes
-
-  // Pendientes con WA: tienen telefono/whatsapp y no han completado
-  const { count: con_wa } = await sb.from('registros')
+  // Pendientes con teléfono registrado → elegibles para WhatsApp
+  const { count: con_tel } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
     .eq('encuesta_campana_id', campanaId)
     .is('encuesta_completada_at', null)
-    .not('whatsapp', 'is', null)
+    .not('telefono', 'is', null)
 
-  const { count: sin_wa } = await sb.from('registros')
+  // Pendientes sin teléfono → solo correo + voicebot
+  const { count: sin_tel } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
     .eq('encuesta_campana_id', campanaId)
     .is('encuesta_completada_at', null)
-    .is('whatsapp', null)
+    .is('telefono', null)
 
   return {
-    wa_elegibles: con_wa ?? 0,
-    sin_wa:       sin_wa ?? 0,
+    wa_elegibles: con_tel ?? 0,
+    sin_wa:       sin_tel ?? 0,
     ya_respondieron: completado,
   }
 }
