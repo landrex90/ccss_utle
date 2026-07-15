@@ -54,29 +54,26 @@ export default function ViewerLoginPage() {
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               Usuario
             </label>
-            <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-[#004B83] dark:focus-within:ring-[#4d9fd6]">
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                required
-                autoFocus
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white outline-none"
-                placeholder="su.usuario"
-              />
-              <span className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700 border-l border-gray-300 dark:border-gray-600 select-none">
-                @ccss.sa.cr
-              </span>
-            </div>
+            <input
+              id="username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 text-sm
+                         bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                         focus:outline-none focus:ring-2 focus:ring-[#004B83] dark:focus:ring-[#4d9fd6] focus:border-transparent"
+              placeholder="usuario"
+            />
           </div>
 
           <div>
             <label htmlFor="cedula" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Cédula
+              Contraseña
             </label>
             <input
               id="cedula"
