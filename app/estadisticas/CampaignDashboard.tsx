@@ -219,12 +219,18 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
             </button>
           ))}
           <div style={{ width:1, height:18, background:'rgba(255,255,255,.2)', margin:'0 2px' }} />
-          <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)}
-            style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
-            {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
-          </select>
-          <button onClick={() => handleExport('registros')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Registros Excel</button>
-          <button onClick={() => handleExport('respuestas')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Respuestas Excel</button>
+          {campanasFiltradas.length === 0 ? (
+            <span style={{ fontSize:11, color:'#fbbf24', fontStyle:'italic', padding:'4px 10px', border:'1px solid rgba(251,191,36,.4)', borderRadius:6, background:'rgba(251,191,36,.08)' }}>
+              Sin campañas de {tipoFiltro} aún
+            </span>
+          ) : (
+            <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)}
+              style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
+              {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
+            </select>
+          )}
+          <button onClick={() => handleExport('registros')} disabled={exp || campanasFiltradas.length === 0} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color: campanasFiltradas.length === 0 ? 'rgba(255,255,255,.3)' : '#fff', cursor: campanasFiltradas.length === 0 ? 'not-allowed' : 'pointer' }}>↓ Registros Excel</button>
+          <button onClick={() => handleExport('respuestas')} disabled={exp || campanasFiltradas.length === 0} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color: campanasFiltradas.length === 0 ? 'rgba(255,255,255,.3)' : '#fff', cursor: campanasFiltradas.length === 0 ? 'not-allowed' : 'pointer' }}>↓ Respuestas Excel</button>
           <span style={{ fontSize:11, color:'#89B8DC', marginLeft:'auto' }}>
             Actualiza en {cd}s &nbsp;
             <button onClick={refresh} style={{ fontSize:11, color:'#89B8DC', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Ahora</button>
