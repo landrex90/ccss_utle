@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import type { CampanaInfo, EstadoRow, EficienciaData, EspecialidadRow, DispositivoData, FormSteps, ProximaFaseData } from './page'
 
@@ -136,19 +136,21 @@ const TIPOS: TipoFiltro[] = ['Todos', 'Cirugía', 'CE', 'Procedimientos']
 
 function getTipo(id: string): TipoFiltro {
   const u = id.toUpperCase()
-  if (u.includes('CIRUGIA'))        return 'Cirugía'
+  if (u.includes('CIRUGIA'))                                             return 'Cirugía'
   if (u.includes('_CE') || u.includes('-CE') || u.includes('CONSULTA')) return 'CE'
-  if (u.includes('PROCEDIMIENTO'))  return 'Procedimientos'
+  if (u.includes('PROCEDIMIENTO') || u.includes('PROC'))                return 'Procedimientos'
   return 'Todos'
 }
 
 export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase }: Props) {
-  const router = useRouter()
+  const router      = useRouter()
+  const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>('resumen')
   const [cd, setCd]         = useState(REFRESH_SECS)
   const [exp, setExp]       = useState(false)
   const [expErr, setExpErr] = useState('')
-  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('Todos')
+
+  const tipoFiltro = (searchParams.get('tipo') ?? 'Todos') as TipoFiltro
 
   const campanasFiltradas = tipoFiltro === 'Todos'
     ? campanas
@@ -205,11 +207,11 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
           {TIPOS.map(t => (
             <button key={t} onClick={() => {
-              setTipoFiltro(t)
               const filtered = t === 'Todos' ? campanas : campanas.filter(cc => getTipo(cc.id) === t)
-              if (filtered.length > 0 && !filtered.find(cc => cc.id === campanaActual)) {
-                router.push(`/estadisticas?campana=${encodeURIComponent(filtered[0].id)}`)
-              }
+              const targetCampana = filtered.find(cc => cc.id === campanaActual)
+                ? campanaActual
+                : (filtered[0]?.id ?? campanaActual)
+              router.push(`/estadisticas?campana=${encodeURIComponent(targetCampana)}&tipo=${encodeURIComponent(t)}`)
             }} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, cursor:'pointer', border:'1px solid rgba(255,255,255,.35)',
               background: tipoFiltro === t ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.08)',
               color: tipoFiltro === t ? '#fff' : '#89B8DC', fontWeight: tipoFiltro === t ? 700 : 400 }}>
@@ -217,7 +219,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
             </button>
           ))}
           <div style={{ width:1, height:18, background:'rgba(255,255,255,.2)', margin:'0 2px' }} />
-          <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}`)}
+          <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)}
             style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
             {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
           </select>

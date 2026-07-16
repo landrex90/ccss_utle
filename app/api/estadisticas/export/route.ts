@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await sb
           .from('registros')
           .select(
-            'id_registro, nombre_paciente, cedula_raw, correo, tipo_atencion, especialidad, nombre_servicio, centro_medico, correo_estado, correo_enviado_at, correo_abierto_at, correo_click_at, encuesta_completada_at, estado, primer_acceso_at, primer_acceso_dispositivo, primer_acceso_pais, primer_acceso_ciudad'
+            'id_registro, nombre_paciente, cedula_raw, correo, tipo_atencion, especialidad, nombre_servicio, centro_medico, fecha_cita, hora_cita, correo_estado, correo_enviado_at, correo_abierto_at, correo_click_at, encuesta_completada_at, estado, primer_acceso_at, primer_acceso_dispositivo, primer_acceso_pais, primer_acceso_ciudad'
           )
           .eq('encuesta_campana_id', campanaId)
           .range(from, from + PAGE_SIZE - 1)
