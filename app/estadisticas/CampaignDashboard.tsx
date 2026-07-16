@@ -190,7 +190,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
           <div>
             <div style={{ fontSize:10, color:'#89B8DC', letterSpacing:2, textTransform:'uppercase' }}>CCSS · Unidad Técnica de Listas de Espera</div>
-            <div style={{ fontSize:17, fontWeight:700, color:'#fff', marginTop:2 }}>CLEO · Dashboard {c.id.replace('ENCUESTA-','').replace(/_\d+$/, '')}</div>
+            <div style={{ fontSize:17, fontWeight:700, color:'#fff', marginTop:2 }}>CLEO · Dashboard {getTipo(campanaActual) !== 'Todos' ? getTipo(campanaActual) : campanaActual.replace('ENCUESTA-', '').replace(/_\d+$/, '')}</div>
           </div>
           <div style={{ textAlign:'right' }}>
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', flexWrap:'wrap' }}>
