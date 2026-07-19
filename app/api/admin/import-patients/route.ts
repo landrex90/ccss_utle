@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
         }
 
         const token = crypto.randomUUID()
-        const linkExpiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+        const linkExpiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
         const idRegistro = row.id_registro ?? `REG-${String(i + 1).padStart(6, '0')}`
 
         const registro = {
