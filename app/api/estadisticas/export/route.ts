@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
           if (error || !data || data.length === 0) break
           for (const r of data) {
-            const info = idMap.get(r.id_registro) ?? { nombre: '', especialidad: '', tipo: '' }
+            const info = idMap.get(r.id_registro) ?? { nombre: '', especialidad: '', tipo: '', cedula: '', procedimiento: null, tipo_consulta: null, edad: null, anio_registro: null, modalidad_asegurado: null, sexo: null, provincia: null, canton: null }
             rows.push({
               id_registro:             r.id_registro,
               cedula:                  info.cedula,
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await sb
           .from('registros')
           .select(
-            'id_registro, nombre_paciente, cedula_raw, correo, tipo_atencion, especialidad, nombre_servicio, centro_medico, fecha_cita, hora_cita, correo_estado, correo_enviado_at, correo_abierto_at, correo_click_at, encuesta_completada_at, estado, primer_acceso_at, primer_acceso_dispositivo, primer_acceso_pais, primer_acceso_ciudad'
+            'id_registro, nombre_paciente, cedula_raw, correo, tipo_atencion, especialidad, nombre_servicio, centro_medico, procedimiento, tipo_consulta, fecha_cita, hora_cita, edad, anio_registro, modalidad_asegurado, sexo, provincia, canton, correo_estado, correo_enviado_at, correo_abierto_at, correo_click_at, encuesta_completada_at, estado, primer_acceso_at, primer_acceso_dispositivo, primer_acceso_pais, primer_acceso_ciudad'
           )
           .eq('encuesta_campana_id', campanaId)
           .range(from, from + PAGE_SIZE - 1)
