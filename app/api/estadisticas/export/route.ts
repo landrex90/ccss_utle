@@ -29,20 +29,34 @@ export async function GET(request: NextRequest) {
 
     if (tipo === 'respuestas') {
       // Trae id_registro de la campaña con paginación completa
-      const idMap = new Map<string, { nombre: string; especialidad: string; tipo: string }>()
+      const idMap = new Map<string, {
+        nombre: string; especialidad: string; tipo: string
+        cedula: string; procedimiento: string | null; tipo_consulta: string | null
+        edad: number | null; anio_registro: number | null; modalidad_asegurado: string | null
+        sexo: string | null; provincia: string | null; canton: string | null
+      }>()
       let regFrom = 0
       while (true) {
         const { data: regIds, error: regErr } = await sb
           .from('registros')
-          .select('id_registro, nombre_paciente, especialidad, tipo_atencion')
+          .select('id_registro, nombre_paciente, especialidad, tipo_atencion, cedula_raw, procedimiento, tipo_consulta, edad, anio_registro, modalidad_asegurado, sexo, provincia, canton')
           .eq('encuesta_campana_id', campanaId)
           .range(regFrom, regFrom + PAGE_SIZE - 1)
         if (regErr || !regIds || regIds.length === 0) break
         for (const r of regIds) {
           idMap.set(r.id_registro, {
-            nombre:       r.nombre_paciente ?? '',
-            especialidad: r.especialidad    ?? '',
-            tipo:         r.tipo_atencion   ?? '',
+            nombre:              r.nombre_paciente      ?? '',
+            especialidad:        r.especialidad         ?? '',
+            tipo:                r.tipo_atencion        ?? '',
+            cedula:              r.cedula_raw           ?? '',
+            procedimiento:       r.procedimiento        ?? null,
+            tipo_consulta:       r.tipo_consulta        ?? null,
+            edad:                r.edad                 ?? null,
+            anio_registro:       r.anio_registro        ?? null,
+            modalidad_asegurado: r.modalidad_asegurado  ?? null,
+            sexo:                r.sexo                 ?? null,
+            provincia:           r.provincia            ?? null,
+            canton:              r.canton               ?? null,
           })
         }
         if (regIds.length < PAGE_SIZE) break
@@ -69,9 +83,18 @@ export async function GET(request: NextRequest) {
             const info = idMap.get(r.id_registro) ?? { nombre: '', especialidad: '', tipo: '' }
             rows.push({
               id_registro:             r.id_registro,
+              cedula:                  info.cedula,
               nombre_paciente:         info.nombre,
               especialidad:            info.especialidad,
               tipo_atencion:           info.tipo,
+              procedimiento:           info.procedimiento,
+              tipo_consulta:           info.tipo_consulta,
+              edad:                    info.edad,
+              anio_registro:           info.anio_registro,
+              modalidad_asegurado:     info.modalidad_asegurado,
+              sexo:                    info.sexo,
+              provincia:               info.provincia,
+              canton:                  info.canton,
               consentimiento:          r.paso_1_consentimiento,
               verificacion_cedula:     r.paso_2_verificacion,
               info_correcta:           r.paso_3_info_correcta,
