@@ -17,9 +17,12 @@
  *   node --env-file=.env.local scripts/_enriquecimiento-demografico.js --dry-run
  */
 
-const XLSX     = require('xlsx')
-const path     = require('path')
-const { createClient } = require('@supabase/supabase-js')
+import XLSX from 'xlsx'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { createClient } from '@supabase/supabase-js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const DRY_RUN    = process.argv.includes('--dry-run')
 const PAGE_SIZE  = 1000
