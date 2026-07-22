@@ -39,7 +39,7 @@ const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY
 const SUPABASE_URL     = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY     = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const FROM      = 'gm_utle_gelisespera@ccss.sa.cr'
+const FROM      = 'gm_utle_glisespera@ccss.sa.cr'
 const FROM_NAME = 'CCSS - Lista de Espera'
 const SUBJECT   = 'La CCSS le solicita actualizar su información en lista de espera'
 const BASE_URL  = 'https://ccss.cocoreservas.com'

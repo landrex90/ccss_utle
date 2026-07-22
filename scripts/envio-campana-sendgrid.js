@@ -9,11 +9,11 @@ const fs   = require('fs')
 const path = require('path')
 
 const API_KEY   = process.env.SENDGRID_API_KEY
-const FROM      = 'gm_utle_gelisespera@ccss.sa.cr'
+const FROM      = 'gm_utle_glisespera@ccss.sa.cr'
 const FROM_NAME = 'CCSS - Lista de Espera'
 const SUBJECT   = 'La CCSS le solicita actualizar su información en lista de espera'
 const BASE_URL  = 'https://ccss.cocoreservas.com'
-const CONTACTO  = 'mailto:gm_utle_gelisespera@ccss.sa.cr'
+const CONTACTO  = 'mailto:gm_utle_glisespera@ccss.sa.cr'
 
 // Destinatarios de la campaña TEST-EQUIPO-2026-06-12
 const DESTINATARIOS = [

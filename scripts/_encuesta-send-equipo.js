@@ -23,7 +23,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !SENDGRID_API_KEY) {
 }
 
 const BASE_URL    = 'https://ccss.cocoreservas.com'
-const FROM        = 'gm_utle_gelisespera@ccss.sa.cr'
+const FROM        = 'gm_utle_glisespera@ccss.sa.cr'
 const FROM_NAME   = 'CCSS - Lista de Espera'
 const SUBJECT     = 'La CCSS le solicita actualizar su información en lista de espera'
 const CAMPANA_ID  = 'CAMP-TEST-ENCUESTA-2026'

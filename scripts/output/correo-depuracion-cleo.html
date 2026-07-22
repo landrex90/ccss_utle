@@ -1,0 +1,323 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Correo — Depuración BD CLEO</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    color: #222222;
+    background: #f5f5f5;
+    padding: 32px 16px;
+    margin: 0;
+  }
+  .email-wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+  }
+  .email-header {
+    background: #0A5B6A;
+    padding: 24px 36px 20px;
+  }
+  .email-header-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 6px;
+  }
+  .email-header-title {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+    line-height: 1.3;
+  }
+  .email-body {
+    padding: 32px 36px;
+  }
+  p {
+    margin: 0 0 16px;
+    line-height: 1.7;
+    color: #333333;
+  }
+  .wetransfer-box {
+    background: #E6F2F4;
+    border-left: 4px solid #0A5B6A;
+    padding: 16px 20px;
+    margin: 24px 0;
+  }
+  .wetransfer-box .label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #0A5B6A;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  .wetransfer-box .link-placeholder {
+    font-size: 15px;
+    font-weight: bold;
+    color: #0A5B6A;
+    margin-bottom: 12px;
+  }
+  .file-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.5;
+  }
+  .file-icon {
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .pwd-note {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #B5601A;
+    font-style: italic;
+  }
+  .section-header {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0A5B6A;
+    border-bottom: 2px solid #0A5B6A;
+    padding-bottom: 6px;
+    margin: 28px 0 16px;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 16px;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { font-size: 14px; color: #333; flex: 1; line-height: 1.4; }
+  .result-num {
+    font-size: 15px;
+    font-weight: bold;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .result-num.green { color: #0A5B6A; }
+  .result-num.amber { color: #B5601A; }
+  .result-num.red   { color: #912A1C; }
+  .result-sub {
+    font-size: 12px;
+    color: #888;
+    margin-top: 2px;
+    line-height: 1.5;
+  }
+  .obs-block {
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .obs-block:last-child { border-bottom: none; margin-bottom: 0; }
+  .obs-title {
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .obs-text {
+    font-size: 13.5px;
+    color: #444;
+    line-height: 1.7;
+    margin: 0;
+  }
+  .phase-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .phase-item {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+  .phase-num {
+    background: #0A5B6A;
+    color: #fff;
+    font-weight: bold;
+    font-size: 12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .phase-body { font-size: 13.5px; color: #444; line-height: 1.6; }
+  .phase-body strong { color: #222; }
+  .decision-block {
+    background: #fffdf9;
+    border: 1px solid #e8d9c0;
+    border-left: 4px solid #B5601A;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+  }
+  .decision-title {
+    font-weight: bold;
+    color: #B5601A;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .decision-text { font-size: 13px; color: #555; line-height: 1.6; margin: 0; }
+  .email-footer {
+    padding: 20px 36px 28px;
+    border-top: 1px solid #e8e8e8;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.7;
+  }
+</style>
+
+<div class="email-wrap">
+
+  <div class="email-header">
+    <div class="email-header-eyebrow">Proyecto CLEO · Lista de Espera UTLE</div>
+    <div class="email-header-title">Informe completo de depuración<br>+ Propuesta de arranque</div>
+  </div>
+
+  <div class="email-body">
+
+    <p>Mariam,</p>
+    <p>Tal como lo mencioné en el correo anterior, les comparto el análisis completo. Por WeTransfer encontrarán tres archivos. El acceso está protegido con contraseña — la envío por separado por un medio seguro.</p>
+
+    <div class="wetransfer-box">
+      <div class="label">Archivos adjuntos — WeTransfer</div>
+      <div class="link-placeholder">[ LINK WETRANSFER ]</div>
+      <div class="file-row"><span class="file-icon">📊</span><div><strong>Base_Depurada_CLEO.xlsx</strong><br>Todos los 91,101 registros evaluados con su estado de depuración y motivo. 5 hojas: detalle completo, resumen, embudo de filtros, registros en revisión y excluidos.</div></div>
+      <div class="file-row"><span class="file-icon">📊</span><div><strong>BD_Analisis_Completo.xlsx</strong><br>Análisis consolidado de los tres ejes con estadísticas de contacto y distribución por canal.</div></div>
+      <div class="file-row"><span class="file-icon">🌐</span><div><strong>Reporte_Depuracion_BD_CLEO.html</strong><br>Reporte visual interactivo. Se descarga y se abre con doble clic en el navegador, sin instalar nada.</div></div>
+      <div class="pwd-note">* La contraseña de acceso se envía por separado vía WhatsApp.</div>
+    </div>
+
+    <div class="section-header">Cómo se construyó este análisis</div>
+    <p>Corrimos una validación independiente sobre el archivo original de la BD y cruzamos los resultados contra los seis insumos que nos compartieron: los cuatro archivos de análisis, el resumen descriptivo del correo y el catálogo de homologación. El nivel de alineación entre ambas fuentes es muy alto, lo que da confianza a los criterios propuestos.</p>
+
+    <div class="section-header">Resultado de la depuración</div>
+    <div>
+      <div class="result-row">
+        <div class="result-label">
+          <strong>Aptos para el piloto</strong>
+          <div class="result-sub">Contacto válido, sin duplicados ni casos que requieran manejo especial.</div>
+        </div>
+        <div class="result-num green">75,967 · 83.4%</div>
+      </div>
+      <div class="result-row">
+        <div class="result-label">
+          <strong>En revisión</strong>
+          <div class="result-sub">En su gran mayoría, citas de CE y Procedimientos con fecha anterior a hoy. Incluye menores de edad y casos pendientes de verificación.</div>
+        </div>
+        <div class="result-num amber">12,488 · 13.7%</div>
+      </div>
+      <div class="result-row">
+        <div class="result-label">
+          <strong>Excluidos</strong>
+          <div class="result-sub">Duplicados exactos, especialidades sensibles, correos institucionales, sin contacto alcanzable.</div>
+        </div>
+        <div class="result-num red">2,646 · 2.9%</div>
+      </div>
+    </div>
+
+    <div class="section-header">Respuesta a sus observaciones puntuales</div>
+
+    <div class="obs-block">
+      <div class="obs-title">Catálogo de procedimientos</div>
+      <p class="obs-text">La iniciativa de homologar con tres variables (Procedimiento + Categoría + Subcategoría) es exactamente el enfoque correcto. El catálogo cubre el 69.4% de los registros de Procedimientos Ambulatorios. El 30.6% restante tiene Categoría = "SIN CLASIFICAR"; los 12 más frecuentes los hemos traducido con descripciones sugeridas para el paciente en el reporte adjunto. Para la interacción con el paciente adoptamos su propuesta: descripción homologada del catálogo donde existe, texto genérico "procedimiento médico pendiente" donde no.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">El caso de 700+ registros</div>
+      <p class="obs-text">Revisamos este caso específicamente. El paciente tiene 767 registros en la BD, pero 766 tienen Selección = NO. Solo 1 registro entra al universo del piloto. No representa ningún riesgo operativo. El criterio de Selección que aplicaron en la BD original ya filtró estos casos correctamente.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Duplicados en Cirugía</div>
+      <p class="obs-text">Encontramos exactamente 7 registros duplicados correspondientes a 5 pacientes, lo cual coincide con su hallazgo. El criterio de duplicado combina: cédula + especialidad + procedimiento + lateralidad. Esto garantiza que una cirugía de rodilla derecha y una de rodilla izquierda en el mismo paciente se traten como dos registros válidos y distintos, que es el comportamiento correcto.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Riesgo de multicontacto</div>
+      <p class="obs-text">Compartimos completamente la preocupación. Identificamos que 17,082 pacientes (25.3% del universo SI) tienen 2 o más registros activos considerando los tres ejes simultáneamente. La propuesta para el bot es enviar <strong>un único mensaje por paciente</strong> que consolide todos sus procedimientos pendientes en un solo contacto. Esto elimina el riesgo de multicontacto y mejora la experiencia del paciente. Nos gustaría alinear este criterio con ustedes antes de ejecutar.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Registros de Terapia Física en series</div>
+      <p class="obs-text">Tienen razón — los paquetes de citas programadas en fechas distintas para la misma especialidad no son duplicados sino un esquema normal de atención. Nuestro criterio los identifica correctamente como registros distintos.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Correos @ccss.sa.cr</div>
+      <p class="obs-text">Identificamos 499 registros con correos institucionales de la CCSS asignados en lugar del correo del paciente. Enviar información clínica a esas direcciones representa un riesgo bajo la Ley 8968 de Protección de Datos. Nuestra propuesta es excluirlos del canal correo y enrutarlos a WhatsApp o llamada donde se tenga teléfono válido.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Fecha de corte y citas ya vencidas</div>
+      <p class="obs-text">La BD tiene corte al 31 de mayo; hoy es 7 de julio. Los 12,488 registros en revisión corresponden principalmente a citas de Consulta Externa y Procedimientos con fecha anterior a hoy — no podemos confirmar si esos pacientes ya fueron atendidos. Nuestra recomendación es excluirlos del piloto inicial y reportarlos al HCG para verificación presencial. Quedan diferenciados en el archivo con el estado "Revisión" para mantener la trazabilidad completa.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Estrategia de implementación escalonada</div>
+      <p class="obs-text">Entendemos la propuesta del HCG. Para esta primera salida nuestra recomendación es arrancar con todos los ejes en lotes simultáneos de volumen controlado. Es operativamente más simple, reduce la coordinación necesaria con el hospital en esta etapa y el control de volumen se hace por tamaño de lote. Para versiones posteriores, el escalonado por especialidades tiene sentido como estrategia de refinamiento.</p>
+    </div>
+
+    <div class="obs-block">
+      <div class="obs-title">Registros con información incompleta</div>
+      <p class="obs-text">El criterio de excluirlos por precaución es el correcto. Están marcados como Selección = NO en la BD original y no entran al piloto.</p>
+    </div>
+
+    <div class="section-header">Propuesta de arranque</div>
+    <p>Estamos listos para ejecutar. Proponemos el siguiente esquema:</p>
+    <ul class="phase-list">
+      <li class="phase-item">
+        <div class="phase-num">1</div>
+        <div class="phase-body"><strong>Día 1 — Muestra de validación (~1,500 pacientes de Cirugía)</strong><br>Cirugía es el eje más limpio: sin fechas de cita que puedan estar vencidas. Permite verificar entregabilidad, medir apertura y afinar el mensaje antes de escalar.</div>
+      </li>
+      <li class="phase-item">
+        <div class="phase-num">2</div>
+        <div class="phase-body"><strong>Semana 1 — Cirugía completa (~25,000 pacientes)</strong><br>Todos los registros de Cirugía aptos para el piloto.</div>
+      </li>
+      <li class="phase-item">
+        <div class="phase-num">3</div>
+        <div class="phase-body"><strong>Semana 2 — CE y Procedimientos con citas futuras (~50,000 pacientes)</strong><br>Los 12,488 en revisión quedan fuera de esta etapa hasta recibir el reporte del HCG.</div>
+      </li>
+    </ul>
+
+    <div class="section-header">Dos puntos que necesitamos alinear antes de ejecutar</div>
+
+    <div class="decision-block">
+      <div class="decision-title">1 · ¿Tienen una versión más reciente de la BD?</div>
+      <p class="decision-text">Al comparar nuestro archivo con los análisis de CLEO_Procedimientos y CLEO_Consulta_Externa, encontramos 959 registros con código ID "202505..." que en nuestra versión tienen Selección = NO, pero que en el análisis de UTLE aparecen como aptos. Si hubo una revisión posterior de los criterios de selección, necesitaríamos ese archivo actualizado antes de ejecutar.</p>
+    </div>
+
+    <div class="decision-block">
+      <div class="decision-title">2 · Menores de edad (96 registros)</div>
+      <p class="decision-text">¿El mensaje se dirige al encargado legal? ¿Cuentan con el dato del encargado en la BD o es necesario gestionarlo antes del piloto?</p>
+    </div>
+
+    <p style="margin-top:24px;">Quedo atento a sus comentarios. Con gusto coordinamos la reunión para revisar el reporte en detalle y definir los criterios finales.</p>
+    <p>Saludos,</p>
+
+  </div>
+
+  <div class="email-footer">
+    <strong>[Nombre]</strong><br>
+    CocoTech · Proyecto CLEO<br>
+    <a href="mailto:a.zapata@cocotech.ai" style="color:#0A5B6A;">a.zapata@cocotech.ai</a>
+  </div>
+
+</div>
