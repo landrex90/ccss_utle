@@ -18,6 +18,12 @@ build/
 # Secretos para subir a Netlify (nunca commitear)
 _netlify-secrets/
 
+# Datos de pacientes y outputs locales — nunca en el repo
+scripts/output/
+scripts/*.csv
+scripts/*.xlsx
+scripts/*.pdf
+
 # Misc
 .DS_Store
 *.pem
