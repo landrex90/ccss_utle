@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
+import { validateViewerSessionServer } from '@/lib/viewer-auth'
 import CampaignDashboard from './CampaignDashboard'
+
+// Viewers autorizados para ver el botón WA export
+const WA_EXPORT_VIEWERS = ['ncorrea']
 
 export const dynamic = 'force-dynamic'
 
@@ -193,6 +197,10 @@ export default async function EstadisticasPage({ searchParams }: Props) {
     return <div className="p-8 text-gray-500 text-center">No hay campañas registradas aún.</div>
   }
 
+  // Determinar si el usuario puede ver el botón WA export
+  const viewerUser = validateViewerSessionServer()
+  const canExportWA = !!(viewerUser && WA_EXPORT_VIEWERS.includes(viewerUser))
+
   const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
@@ -213,6 +221,7 @@ export default async function EstadisticasPage({ searchParams }: Props) {
       dispositivos={dispositivos}
       formSteps={formSteps}
       proximaFase={proximaFase}
+      canExportWA={canExportWA}
     />
   )
 }

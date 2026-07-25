@@ -108,6 +108,71 @@ const REFRESH_SECS = 120
 const CARD: React.CSSProperties = { background:'#fff', borderRadius:10, border:`1px solid ${C.border}`, padding:'20px 22px', marginBottom:18 }
 const SEC: React.CSSProperties  = { fontSize:10, fontWeight:700, letterSpacing:2, textTransform:'uppercase', color:C.gray, marginBottom:12 }
 
+// ── WA Export Button ───────────────────────────────────────────────────────────
+function WaExportButton({ campanaId, waElegibles }: { campanaId: string; waElegibles: number }) {
+  const [estado, setEstado] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [msg, setMsg]       = useState('')
+
+  async function handleExport() {
+    if (estado === 'loading') return
+    setEstado('loading')
+    setMsg('')
+    try {
+      const res = await fetch(`/api/admin/wa-export-coco?campana=${encodeURIComponent(campanaId)}`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Error ${res.status}`)
+      }
+      const aptos    = res.headers.get('X-WA-Aptos') ?? '?'
+      const excluidos = res.headers.get('X-WA-Excluidos') ?? '?'
+
+      // Descargar el archivo
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      const cd   = res.headers.get('Content-Disposition') ?? ''
+      const name = cd.match(/filename="([^"]+)"/)?.[1] ?? `wa-export.xlsx`
+      a.download = name
+      a.click()
+      URL.revokeObjectURL(url)
+
+      setEstado('ok')
+      setMsg(`✅ ${Number(aptos).toLocaleString('es-CR')} registros para COCO · ${Number(excluidos).toLocaleString('es-CR')} pasan a llamada (marcados en BD)`)
+    } catch (e: unknown) {
+      setEstado('error')
+      setMsg(`❌ ${e instanceof Error ? e.message : 'Error desconocido'}`)
+    }
+  }
+
+  const btnColor = estado === 'ok' ? C.green : estado === 'error' ? C.red : C.wa
+
+  return (
+    <div style={{ marginBottom:18, padding:'16px 20px', borderRadius:10, border:`2px solid ${C.wa}`, background:'#F0FDF4', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+      <div style={{ flex:1, minWidth:200 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:C.green, marginBottom:3 }}>📲 Exportar para WhatsApp — COCO</div>
+        <div style={{ fontSize:11, color:C.gray }}>
+          Genera el Excel en formato COCO y marca los registros en BD.&nbsp;
+          <strong>{waElegibles.toLocaleString('es-CR')} candidatos</strong> pendientes en esta campaña.
+        </div>
+        {msg && <div style={{ fontSize:11, marginTop:6, color: estado === 'ok' ? C.green : C.red, fontWeight:600 }}>{msg}</div>}
+      </div>
+      <button
+        onClick={handleExport}
+        disabled={estado === 'loading'}
+        style={{
+          padding:'10px 22px', borderRadius:8, border:'none', cursor: estado === 'loading' ? 'not-allowed' : 'pointer',
+          background: btnColor, color:'#fff', fontSize:13, fontWeight:700,
+          opacity: estado === 'loading' ? 0.7 : 1, whiteSpace:'nowrap',
+          transition:'opacity 0.2s',
+        }}
+      >
+        {estado === 'loading' ? '⏳ Generando...' : estado === 'ok' ? '✅ Descargado' : '⬇️ Descargar para COCO'}
+      </button>
+    </div>
+  )
+}
+
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface Props {
   campanas:     CampanaInfo[]
@@ -119,6 +184,7 @@ interface Props {
   dispositivos: DispositivoData
   formSteps:    FormSteps
   proximaFase:  ProximaFaseData
+  canExportWA?: boolean
 }
 
 type Tab = 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente'
@@ -142,7 +208,7 @@ function getTipo(id: string): TipoFiltro {
   return 'Todos'
 }
 
-export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase }: Props) {
+export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, canExportWA }: Props) {
   const router      = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>('resumen')
@@ -537,6 +603,11 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         {/* ══ PRÓXIMA FASE ══ */}
         {tab === 'siguiente' && (
           <div>
+            {/* Botón WA Export — solo visible para usuarios autorizados */}
+            {canExportWA && (
+              <WaExportButton campanaId={campanaActual} waElegibles={proximaFase.wa_elegibles} />
+            )}
+
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
               <div>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, marginBottom:12, border:`1px solid ${C.blueMd}`, background:C.blueLt }}>
