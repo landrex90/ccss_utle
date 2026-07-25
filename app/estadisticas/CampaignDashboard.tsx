@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { CampanaInfo, EstadoRow, EficienciaData, EspecialidadRow, DispositivoData, FormSteps, ProximaFaseData } from './page'
 
 // ── Colores (idénticos al artifact) ────────────────────────────────────────────
@@ -169,6 +169,76 @@ function WaExportButton({ campanaId, waElegibles }: { campanaId: string; waElegi
       >
         {estado === 'loading' ? '⏳ Generando...' : estado === 'ok' ? '✅ Descargado' : '⬇️ Descargar para COCO'}
       </button>
+    </div>
+  )
+}
+
+function WaImportButton({ campanaId }: { campanaId: string }) {
+  const [estado, setEstado] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
+  const [msg, setMsg]       = useState('')
+  const [archivo, setArchivo] = useState<File | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleUpload() {
+    if (!archivo || estado === 'loading') return
+    setEstado('loading')
+    setMsg('')
+    try {
+      const form = new FormData()
+      form.append('file', archivo)
+      const res = await fetch(`/api/admin/wa-import-coco?campana=${encodeURIComponent(campanaId)}`, {
+        method: 'POST',
+        body: form,
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
+      setEstado('ok')
+      const { matched, respondio, noRespondio, fallido } = data
+      setMsg(`✅ ${matched} procesados · ${respondio} respondieron · ${noRespondio} no respondieron · ${fallido} fallidos`)
+    } catch (e: unknown) {
+      setEstado('error')
+      setMsg(`❌ ${e instanceof Error ? e.message : 'Error desconocido'}`)
+    }
+  }
+
+  return (
+    <div style={{ marginBottom:18, padding:'16px 20px', borderRadius:10, border:`2px solid ${C.blue}`, background:C.blueLt, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".xlsx"
+        style={{ display:'none' }}
+        onChange={e => { setArchivo(e.target.files?.[0] ?? null); setEstado('idle'); setMsg('') }}
+      />
+      <div style={{ flex:1, minWidth:200 }}>
+        <div style={{ fontSize:13, fontWeight:700, color:C.blue, marginBottom:3 }}>📥 Subir resultados COCO — WhatsApp</div>
+        <div style={{ fontSize:11, color:C.gray }}>
+          {archivo
+            ? <><strong>{archivo.name}</strong> seleccionado</>
+            : 'Seleccione el Excel de resultados que devolvió COCO para importarlo a la BD.'}
+        </div>
+        {msg && <div style={{ fontSize:11, marginTop:6, color: estado === 'ok' ? C.green : C.red, fontWeight:600 }}>{msg}</div>}
+      </div>
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+        <button
+          onClick={() => inputRef.current?.click()}
+          style={{ padding:'10px 18px', borderRadius:8, border:`1.5px solid ${C.blue}`, cursor:'pointer', background:'#fff', color:C.blue, fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}
+        >
+          📂 Elegir archivo
+        </button>
+        <button
+          onClick={handleUpload}
+          disabled={!archivo || estado === 'loading'}
+          style={{
+            padding:'10px 22px', borderRadius:8, border:'none', cursor: (!archivo || estado === 'loading') ? 'not-allowed' : 'pointer',
+            background: estado === 'ok' ? C.green : estado === 'error' ? C.red : C.blue,
+            color:'#fff', fontSize:13, fontWeight:700,
+            opacity: (!archivo || estado === 'loading') ? 0.5 : 1, whiteSpace:'nowrap',
+          }}
+        >
+          {estado === 'loading' ? '⏳ Importando...' : estado === 'ok' ? '✅ Importado' : '⬆️ Importar a BD'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -606,6 +676,9 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
             {/* Botón WA Export — solo visible para usuarios autorizados */}
             {canExportWA && (
               <WaExportButton campanaId={campanaActual} waElegibles={proximaFase.wa_elegibles} />
+            )}
+            {canExportWA && (
+              <WaImportButton campanaId={campanaActual} />
             )}
 
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
