@@ -136,12 +136,16 @@ export async function POST(request: NextRequest) {
     else noRespondio++
 
     const updReg: Record<string, unknown> = {
-      id_registro:         idRegistro,
-      whatsapp_enviado_at: hourSent,
-      whatsapp_estado:     waEstado,
-      whatsapp_error:      errorCoco,
+      id_registro:          idRegistro,
+      _wa_estado:           waEstado,   // campo interno para lógica idempotente
+      whatsapp_enviado_at:  hourSent,
+      whatsapp_estado:      waEstado,
+      whatsapp_error:       errorCoco,
     }
-    if (waEstado === 'respondio') updReg.whatsapp_respondio_at = hourSent
+    if (waEstado === 'respondio') {
+      updReg.whatsapp_respondio_at  = hourSent
+      updReg.encuesta_completada_at = hourSent  // WA respondentes visibles en dashboard
+    }
     updatesRegistros.push(updReg)
 
     if (waEstado === 'respondio') {
@@ -173,12 +177,15 @@ export async function POST(request: NextRequest) {
   for (let i = 0; i < updatesRegistros.length; i += BATCH) {
     const batch = updatesRegistros.slice(i, i + BATCH)
     for (const upd of batch) {
-      const { id_registro, ...campos } = upd
+      const { id_registro, _wa_estado, ...campos } = upd
       const camposLimpios = Object.fromEntries(
         Object.entries(campos).filter(([, v]) => v !== null && v !== undefined)
       )
       if (Object.keys(camposLimpios).length === 0) continue
-      const { error } = await sb.from('registros').update(camposLimpios).eq('id_registro', id_registro as string)
+      let query = sb.from('registros').update(camposLimpios).eq('id_registro', id_registro as string)
+      // Nunca degradar un respondio → no_respondio / fallido si alguien sube un archivo viejo
+      if (_wa_estado !== 'respondio') query = query.neq('whatsapp_estado', 'respondio')
+      const { error } = await query
       if (error) errores++
     }
     await sleep(150)
