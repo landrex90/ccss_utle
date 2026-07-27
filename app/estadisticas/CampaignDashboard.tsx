@@ -258,13 +258,14 @@ interface Props {
   canExportWA?: boolean
 }
 
-type Tab = 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente' | 'whatsapp'
+type Tab = 'global' | 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente' | 'whatsapp'
 const TABS: { id: Tab; label: string }[] = [
-  { id:'resumen',       label:'📊 Resumen'             },
+  { id:'global',        label:'🌐 Resumen General'      },
+  { id:'resumen',       label:'📊 Esta Campaña'         },
   { id:'eficiencia',    label:'⚡ Eficiencia'           },
   { id:'especialidades',label:'🏥 Especialidades'       },
   { id:'tecnologia',    label:'📱 Tecnología'           },
-  { id:'formulario',    label:'📋 Respuestas formulario'},
+  { id:'formulario',    label:'📋 Respuestas'           },
   { id:'siguiente',     label:'💬 Próxima fase'         },
   { id:'whatsapp',      label:'📲 WhatsApp'             },
 ]
@@ -283,7 +284,7 @@ function getTipo(id: string): TipoFiltro {
 export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, canExportWA }: Props) {
   const router      = useRouter()
   const searchParams = useSearchParams()
-  const [tab, setTab]       = useState<Tab>('resumen')
+  const [tab, setTab]       = useState<Tab>((searchParams.get('tab') as Tab) ?? 'global')
   const [cd, setCd]         = useState(REFRESH_SECS)
   const [exp, setExp]       = useState(false)
   const [expErr, setExpErr] = useState('')
@@ -314,6 +315,19 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
   const totalMax = especialidades[0]?.total_piloto ?? 1
   const totalOsMax = Math.max(...Object.values(dispositivos.os), 1)
   const totalBrMax = Math.max(...Object.values(dispositivos.browser), 1)
+
+  // Totales globales (suma de todas las campañas)
+  const globalTotals = campanas.reduce((acc, cc) => ({
+    total:      acc.total      + cc.total,
+    enviado:    acc.enviado    + cc.enviado,
+    accedieron: acc.accedieron + cc.accedieron,
+    completado: acc.completado + cc.completado,
+  }), { total: 0, enviado: 0, accedieron: 0, completado: 0 })
+
+  // Completados por canal (para separar correo vs WA en el embudo)
+  const waCompletados     = waData.activo + waData.depurado_renuncia
+  const correoCompletados = Math.max(0, c.completado - waCompletados)
+  const pendientes        = c.total - c.completado
 
   // Canal order for formulario
   const canalOrder = ['whatsapp', 'cualquiera', 'llamada', 'correo', 'sms']
@@ -398,24 +412,99 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
 
       <div style={{ paddingTop:24 }}>
 
-        {/* ══ RESUMEN ══ */}
+        {/* ══ RESUMEN GLOBAL ══ */}
+        {tab === 'global' && (
+          <div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+              <KPI lbl="Campañas activas"        val={String(campanas.length)}                             sub="correo + WA en ejecución"                                        col={C.blue}  />
+              <KPI lbl="Correos enviados (total)" val={fmt(globalTotals.enviado)}                           sub="Suma de todas las campañas"                                       col={C.blue}  />
+              <KPI lbl="Completaron encuesta"     val={fmt(globalTotals.completado)}                        sub={`${pct(globalTotals.completado, globalTotals.enviado)} tasa promedio`} col={C.green} />
+              <KPI lbl="Pendientes global"        val={fmt(globalTotals.enviado - globalTotals.completado)} sub="Sin responder aún"                                               col={C.gray}  />
+            </div>
+            <div style={CARD}>
+              <div style={SEC}>Detalle por campaña — haga clic en una fila para ver el detalle completo</div>
+              <div style={{ overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                  <thead>
+                    <tr style={{ borderBottom:`2px solid ${C.border}` }}>
+                      <th style={{ textAlign:'left', padding:'6px 10px 10px 0', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Campaña</th>
+                      <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Enviados</th>
+                      <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Abrieron</th>
+                      <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Completaron</th>
+                      <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Tasa</th>
+                      <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Inicio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campanas.map(cc => {
+                      const tasa = cc.enviado ? (cc.completado / cc.enviado) * 100 : 0
+                      const tipo = cc.id.includes('CIRUGIA') ? 'CIR' : cc.id.includes('-CE') || cc.id.includes('_CE') ? 'CE' : 'PROC'
+                      const tipoBg = tipo === 'CIR' ? '#DBEAFE' : tipo === 'CE' ? '#DCFCE7' : '#FEF3C7'
+                      const tipoCol = tipo === 'CIR' ? C.blue : tipo === 'CE' ? C.green : C.amber
+                      const isActual = cc.id === campanaActual
+                      return (
+                        <tr key={cc.id}
+                          onClick={() => { router.push(`/estadisticas?campana=${encodeURIComponent(cc.id)}&tab=resumen`); setTab('resumen') }}
+                          style={{ cursor:'pointer', borderBottom:`1px solid #F1F5F9`, background: isActual ? C.blueLt : 'transparent' }}
+                        >
+                          <td style={{ padding:'10px 10px 10px 0', fontWeight: isActual ? 700 : 400 }}>
+                            <span style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:12, background: tipoBg, color: tipoCol, marginRight:7 }}>{tipo}</span>
+                            {cc.id.replace('ENCUESTA-', '').replace(/_\d+$/, '')}
+                          </td>
+                          <td style={{ textAlign:'right', padding:'10px 8px', fontVariantNumeric:'tabular-nums' }}>{fmt(cc.enviado)}</td>
+                          <td style={{ textAlign:'right', padding:'10px 8px', color:C.blue, fontVariantNumeric:'tabular-nums' }}>{fmt(cc.accedieron)}<span style={{ color:C.gray, fontSize:10, marginLeft:4 }}>({pct(cc.accedieron, cc.enviado)})</span></td>
+                          <td style={{ textAlign:'right', padding:'10px 8px', color:C.green, fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{fmt(cc.completado)}</td>
+                          <td style={{ textAlign:'right', padding:'10px 8px' }}>
+                            <span style={{ fontWeight:800, color: tasa >= 30 ? C.green : tasa >= 15 ? C.amber : C.gray }}>{Math.round(tasa * 10) / 10}%</span>
+                            <div style={{ height:4, background:C.border, borderRadius:2, marginTop:4, width:'100%' }}>
+                              <div style={{ height:'100%', borderRadius:2, background: tasa >= 30 ? C.green : tasa >= 15 ? C.amber : C.gray, width:`${Math.min(100, tasa * 2.5)}%` }} />
+                            </div>
+                          </td>
+                          <td style={{ textAlign:'right', padding:'10px 8px', color:C.gray, fontSize:11 }}>{fmtDate(cc.fecha_inicio)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop:`2px solid ${C.border}` }}>
+                      <td style={{ padding:'10px 10px 6px 0', fontWeight:700, color:C.text }}>TOTAL</td>
+                      <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.blue, fontVariantNumeric:'tabular-nums' }}>{fmt(globalTotals.enviado)}</td>
+                      <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.blue, fontVariantNumeric:'tabular-nums' }}>{fmt(globalTotals.accedieron)}</td>
+                      <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.green, fontVariantNumeric:'tabular-nums' }}>{fmt(globalTotals.completado)}</td>
+                      <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.green }}>{pct(globalTotals.completado, globalTotals.enviado)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div style={{ fontSize:11, color:C.gray, marginTop:10, fontStyle:'italic' }}>
+                * Un mismo paciente puede aparecer en varias campañas (cirugía + consulta, etc.). El total no representa pacientes únicos.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ RESUMEN CAMPAÑA ══ */}
         {tab === 'resumen' && (
           <div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-              <KPI lbl="Correos enviados"  val={fmt(c.enviado)}    sub={fmtDate(c.fecha_inicio)}              col={C.blue}  />
-              <KPI lbl="Accedieron al link" val={fmt(c.accedieron)} sub={`${pct(c.accedieron, c.enviado)} del total`} col={C.blue}  />
-              <KPI lbl="Respondieron"      val={fmt(c.completado)} sub={`${pct(c.completado, c.enviado)} del total`}  col={C.green} />
-              <KPI lbl="Sin responder"     val={fmt(c.enviado - c.completado)} sub="Ventana activa: 3 días" col={C.gray}  />
+              <KPI lbl="Correos enviados"     val={fmt(c.enviado)}          sub={fmtDate(c.fecha_inicio)}                                                                        col={C.blue}  />
+              <KPI lbl="Abrieron correo"      val={fmt(c.accedieron)}       sub={`${pct(c.accedieron, c.enviado)} del total`}                                                   col={C.blue}  />
+              <KPI lbl="Completaron encuesta" val={fmt(c.completado)}       sub={waCompletados > 0 ? `${fmt(correoCompletados)} correo · ${fmt(waCompletados)} WA` : `${pct(c.completado, c.enviado)} del total`} col={C.green} />
+              <KPI lbl="Sin responder"        val={fmt(pendientes)}         sub={`${pct(pendientes, c.total)} del total`}                                                        col={C.gray}  />
             </div>
 
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
               <div style={CARD}>
                 <div style={SEC}>Embudo de conversión</div>
-                <FunnelRow lbl="📧 Enviados"           val={c.enviado}    total={c.enviado}    color={C.blueMd} />
-                <FunnelRow lbl="🔗 Accedieron al link" val={c.accedieron} total={c.enviado}    color={C.blue}   />
-                <FunnelRow lbl="✅ Completaron"         val={c.completado} total={c.enviado}    color={C.green}  />
-                <FunnelRow lbl="⏳ Abrió, no terminó"  val={Math.max(0, c.accedieron - c.completado)} total={c.enviado} color={C.amber} />
-                <FunnelRow lbl="📭 Sin acceder"         val={c.enviado - c.accedieron}          total={c.enviado} color='#E2E8F0' />
+                <FunnelRow lbl="📧 Enviados por correo"       val={c.enviado}                                    total={c.enviado} color={C.blueMd} />
+                <FunnelRow lbl="🔗 Abrieron el correo"        val={c.accedieron}                                 total={c.enviado} color={C.blue}   />
+                <FunnelRow lbl="✅ Completaron vía correo"     val={correoCompletados}                            total={c.enviado} color={C.green}  />
+                {waCompletados > 0 && (
+                  <FunnelRow lbl="💬 Completaron vía WhatsApp" val={waCompletados}                               total={c.enviado} color={C.wa}     />
+                )}
+                <FunnelRow lbl="⏳ Abrió correo, no terminó"  val={Math.max(0, c.accedieron - correoCompletados)} total={c.enviado} color={C.amber} />
+                <FunnelRow lbl="📭 Sin acceder al correo"      val={Math.max(0, c.enviado - c.accedieron)}       total={c.enviado} color='#E2E8F0' />
               </div>
 
               <div style={CARD}>
@@ -735,7 +824,6 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
             </div>
           </div>
         )}
-      </div>
 
         {/* ══ WHATSAPP ══ */}
         {tab === 'whatsapp' && (
@@ -861,6 +949,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
             )}
           </div>
         )}
+      </div>
 
       <div style={{ textAlign:'center', padding:14, fontSize:11, color:'#94A3B8', borderTop:`1px solid ${C.border}`, marginTop:24, marginLeft:-24, marginRight:-24 }}>
         CoCo Tech AI · UTLE · CCSS &nbsp;|&nbsp; {campanaActual} · Actualiza cada {REFRESH_SECS}s
