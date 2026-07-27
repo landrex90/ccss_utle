@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { CampanaInfo, EstadoRow, EficienciaData, EspecialidadRow, DispositivoData, FormSteps, ProximaFaseData } from './page'
+import type { CampanaInfo, EstadoRow, EficienciaData, EspecialidadRow, DispositivoData, FormSteps, ProximaFaseData, WaData } from './page'
 
 // ── Colores (idénticos al artifact) ────────────────────────────────────────────
 const C = {
@@ -254,10 +254,11 @@ interface Props {
   dispositivos: DispositivoData
   formSteps:    FormSteps
   proximaFase:  ProximaFaseData
+  waData:       WaData
   canExportWA?: boolean
 }
 
-type Tab = 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente'
+type Tab = 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente' | 'whatsapp'
 const TABS: { id: Tab; label: string }[] = [
   { id:'resumen',       label:'📊 Resumen'             },
   { id:'eficiencia',    label:'⚡ Eficiencia'           },
@@ -265,6 +266,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id:'tecnologia',    label:'📱 Tecnología'           },
   { id:'formulario',    label:'📋 Respuestas formulario'},
   { id:'siguiente',     label:'💬 Próxima fase'         },
+  { id:'whatsapp',      label:'📲 WhatsApp'             },
 ]
 
 type TipoFiltro = 'Todos' | 'Cirugía' | 'CE' | 'Procedimientos'
@@ -278,7 +280,7 @@ function getTipo(id: string): TipoFiltro {
   return 'Todos'
 }
 
-export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, canExportWA }: Props) {
+export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, canExportWA }: Props) {
   const router      = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>('resumen')
@@ -377,11 +379,18 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
 
       {/* TABS */}
       <div style={{ display:'flex', background:'#fff', borderBottom:`2px solid ${C.border}`, marginLeft:-24, marginRight:-24, paddingLeft:24, overflowX:'auto' }}>
-        {TABS.map(t => (
+        {TABS.filter(t => t.id !== 'whatsapp' || waData.enviados > 0).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             fontSize:12, fontWeight:600, padding:'13px 16px', cursor:'pointer', border:'none', background:'none', borderBottom:`2px solid ${tab===t.id ? C.blue : 'transparent'}`,
             color: tab===t.id ? C.blue : C.gray, marginBottom:-2, whiteSpace:'nowrap', transition:'color .15s'
-          }}>{t.label}</button>
+          }}>
+            {t.label}
+            {t.id === 'whatsapp' && waData.respondio > 0 && (
+              <span style={{ marginLeft:6, background:C.green, color:'#fff', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:10 }}>
+                {waData.respondio}
+              </span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -727,6 +736,131 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
           </div>
         )}
       </div>
+
+        {/* ══ WHATSAPP ══ */}
+        {tab === 'whatsapp' && (
+          <div>
+            {waData.enviados === 0 ? (
+              <div style={{ ...CARD, textAlign:'center', padding:40, color:C.gray }}>
+                <div style={{ fontSize:32, marginBottom:12 }}>💬</div>
+                <div style={{ fontSize:15, fontWeight:600 }}>Sin datos de WhatsApp para esta campaña</div>
+                <div style={{ fontSize:12, marginTop:6 }}>Cuando se carguen resultados del canal WA aparecerán aquí automáticamente.</div>
+              </div>
+            ) : (
+              <>
+                {/* KPIs principales */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:18 }}>
+                  <KPI lbl="Contactados por WA"  val={fmt(waData.enviados)}     sub="Mensajes despachados"                             col={C.wa}    />
+                  <KPI lbl="Interactuaron"        val={fmt(waData.respondio)}    sub={`${pct(waData.respondio, waData.enviados)} del total`}   col={C.green} />
+                  <KPI lbl="Sin respuesta"        val={fmt(waData.no_respondio)} sub={`${pct(waData.no_respondio, waData.enviados)} pasan a llamada`} col={C.amber} />
+                  <KPI lbl="Continuarán atención" val={fmt(waData.activo)}       sub={`${pct(waData.activo, waData.enviados)} confirmaron ACTIVO`}  col={C.green} />
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
+
+                  {/* Funnel */}
+                  <div style={CARD}>
+                    <div style={SEC}>Funnel WhatsApp</div>
+                    <FunnelRow lbl="💬 Contactados"        val={waData.enviados}     total={waData.enviados} color={C.wa}    />
+                    {waData.entregados > 0 && <FunnelRow lbl="✅ Entregados"         val={waData.entregados}   total={waData.enviados} color={C.green}  />}
+                    {waData.leidos     > 0 && <FunnelRow lbl="👁 Leídos"             val={waData.leidos}       total={waData.enviados} color={C.blue}   />}
+                    <FunnelRow lbl="🗨 Interactuaron"      val={waData.respondio}    total={waData.enviados} color='#16A34A' />
+                    <FunnelRow lbl="✅ Confirmaron ACTIVO" val={waData.activo}        total={waData.enviados} color={C.green}  />
+                    <FunnelRow lbl="🔕 Sin respuesta"      val={waData.no_respondio} total={waData.enviados} color={C.amber}  />
+                  </div>
+
+                  {/* Desglose por resultado */}
+                  <div style={CARD}>
+                    <div style={SEC}>Resultado por tipo de interacción</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.greenLt, border:`1px solid #A7F3D0` }}>
+                        <div>
+                          <div style={{ fontSize:12, fontWeight:700, color:C.green }}>✅ ACTIVO — quieren continuar</div>
+                          <div style={{ fontSize:11, color:C.gray, marginTop:1 }}>Completaron el flujo · desean seguir en lista</div>
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{fmt(waData.activo)}</div>
+                          <div style={{ fontSize:10, color:C.gray }}>{pct(waData.activo, waData.enviados)}</div>
+                        </div>
+                      </div>
+
+                      {waData.depurado_renuncia > 0 && (
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.amberLt, border:`1px solid #FCD34D` }}>
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:700, color:C.amber }}>⚠️ DEPURADO — retiro voluntario</div>
+                            <div style={{ fontSize:11, color:C.gray, marginTop:1 }}>Ya no desean la atención / contraindicación médica</div>
+                          </div>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontSize:22, fontWeight:800, color:C.amber }}>{fmt(waData.depurado_renuncia)}</div>
+                            <div style={{ fontSize:10, color:C.gray }}>{pct(waData.depurado_renuncia, waData.enviados)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {waData.no_autorizo > 0 && (
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F5F3FF', border:'1px solid #C4B5FD' }}>
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:700, color:C.purple }}>🚫 NO AUTORIZÓ — rechazaron el bot</div>
+                            <div style={{ fontSize:11, color:C.gray, marginTop:1 }}>Declinaron el proceso WA · pasan a llamada</div>
+                          </div>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontSize:22, fontWeight:800, color:C.purple }}>{fmt(waData.no_autorizo)}</div>
+                            <div style={{ fontSize:10, color:C.gray }}>{pct(waData.no_autorizo, waData.enviados)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {waData.no_verificado > 0 && (
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.redLt, border:`1px solid #FCA5A5` }}>
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:700, color:C.red }}>❌ NO VERIFICADO — 3 intentos agotados</div>
+                            <div style={{ fontSize:11, color:C.gray, marginTop:1 }}>Fallaron verificación de identidad · pasan a llamada</div>
+                          </div>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontSize:22, fontWeight:800, color:C.red }}>{fmt(waData.no_verificado)}</div>
+                            <div style={{ fontSize:10, color:C.gray }}>{pct(waData.no_verificado, waData.enviados)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F8FAFC', border:`1px solid ${C.border}` }}>
+                        <div>
+                          <div style={{ fontSize:12, fontWeight:700, color:C.gray }}>🔕 SIN RESPUESTA — no interactuaron</div>
+                          <div style={{ fontSize:11, color:C.gray, marginTop:1 }}>Pasan al canal voicebot</div>
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <div style={{ fontSize:22, fontWeight:800, color:C.gray }}>{fmt(waData.no_respondio)}</div>
+                          <div style={{ fontSize:10, color:C.gray }}>{pct(waData.no_respondio, waData.enviados)}</div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resumen para próxima fase */}
+                <div style={{ ...CARD, background:C.blueLt, border:`1px solid ${C.blueMd}` }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:C.blue, marginBottom:10 }}>📞 Pasan al voicebot (siguiente fase)</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+                    <div style={{ textAlign:'center', padding:'10px 0' }}>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.amber }}>{fmt(waData.no_respondio)}</div>
+                      <div style={{ fontSize:11, color:C.gray, marginTop:2 }}>No respondieron WA</div>
+                    </div>
+                    <div style={{ textAlign:'center', padding:'10px 0', borderLeft:`1px solid ${C.blueMd}`, borderRight:`1px solid ${C.blueMd}` }}>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.purple }}>{fmt(waData.no_autorizo + waData.no_verificado)}</div>
+                      <div style={{ fontSize:11, color:C.gray, marginTop:2 }}>No autorizaron / no verificaron</div>
+                    </div>
+                    <div style={{ textAlign:'center', padding:'10px 0' }}>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.blue }}>{fmt(waData.no_respondio + waData.no_autorizo + waData.no_verificado)}</div>
+                      <div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Total para llamada</div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
       <div style={{ textAlign:'center', padding:14, fontSize:11, color:'#94A3B8', borderTop:`1px solid ${C.border}`, marginTop:24, marginLeft:-24, marginRight:-24 }}>
         CoCo Tech AI · UTLE · CCSS &nbsp;|&nbsp; {campanaActual} · Actualiza cada {REFRESH_SECS}s

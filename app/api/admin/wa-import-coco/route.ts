@@ -94,37 +94,57 @@ export async function POST(request: NextRequest) {
 
   const sb = createClient()
 
-  // Construir mapa cédula → id_registro
-  const cedulaMap = new Map<string, string>()
+  // Construir mapa cédula → registros (array para manejar cédulas duplicadas)
+  type RegInfo = { id_registro: string; especialidad: string | null; encuesta_completada_at: string | null }
+  const cedulaMap = new Map<string, RegInfo[]>()
   let from = 0
   while (true) {
     const { data, error } = await sb
       .from('registros')
-      .select('id_registro, cedula_raw')
+      .select('id_registro, cedula_raw, especialidad, encuesta_completada_at')
       .eq('whatsapp_campana_id', waCampanaId)
       .range(from, from + 999)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!data || data.length === 0) break
     for (const r of data) {
-      if (r.cedula_raw) cedulaMap.set(String(r.cedula_raw).trim(), r.id_registro as string)
+      if (!r.cedula_raw) continue
+      const c = String(r.cedula_raw).trim()
+      const entry: RegInfo = {
+        id_registro:           r.id_registro as string,
+        especialidad:          r.especialidad as string | null,
+        encuesta_completada_at: r.encuesta_completada_at as string | null,
+      }
+      const arr = cedulaMap.get(c)
+      if (arr) arr.push(entry)
+      else cedulaMap.set(c, [entry])
     }
     if (data.length < 1000) break
     from += 1000
   }
 
-  // Procesar filas
+  // Procesar filas — match por cédula+especialidad, fallback a todos si ambiguo
   let matched = 0, noMatch = 0, respondio = 0, noRespondio = 0, fallido = 0, errores = 0
   const updatesRegistros: Array<Record<string, unknown>> = []
   const upsertRespuestas: Array<Record<string, unknown>> = []
 
   for (const row of rows) {
-    const cedula = clean(row['N° Identificación'] ?? row['id'] ?? '')
+    const cedula  = clean(row['id'] ?? row['N° Identificación'] ?? '')
     if (!cedula) { noMatch++; continue }
 
-    const idRegistro = cedulaMap.get(cedula)
-    if (!idRegistro) { noMatch++; continue }
-    matched++
+    const allRegs = cedulaMap.get(cedula) ?? []
+    if (allRegs.length === 0) { noMatch++; continue }
+
+    const cocoEsp = String(row['Especialidad'] ?? '').trim()
+    let matchingRegs: RegInfo[]
+    if (!cocoEsp) {
+      matchingRegs = allRegs
+    } else {
+      const byEsp = allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp)
+      matchingRegs = byEsp.length > 0 ? byEsp : allRegs
+    }
+
+    matched += matchingRegs.length
 
     const estadoCoco = clean(row['Estado final'])
     const errorCoco  = clean(row['error'])
@@ -135,33 +155,42 @@ export async function POST(request: NextRequest) {
     else if (waEstado === 'fallido') fallido++
     else noRespondio++
 
-    const updReg: Record<string, unknown> = {
-      id_registro:          idRegistro,
-      _wa_estado:           waEstado,   // campo interno para lógica idempotente
-      whatsapp_enviado_at:  hourSent,
-      whatsapp_estado:      waEstado,
-      whatsapp_error:       errorCoco,
-    }
-    if (waEstado === 'respondio') {
-      updReg.whatsapp_respondio_at  = hourSent
-      updReg.encuesta_completada_at = hourSent  // WA respondentes visibles en dashboard
-    }
-    updatesRegistros.push(updReg)
+    for (const reg of matchingRegs) {
+      const yaCompletoPorCorreo = !!reg.encuesta_completada_at
 
-    if (waEstado === 'respondio') {
-      upsertRespuestas.push({
-        id_registro:                 idRegistro,
-        paso_2_verificacion:         clean(row['Verificación de identidad']),
-        paso_4_desea_continuar:      clean(row['¿Desea continuar con esta atención pendiente?']),
-        motivo_retiro:               clean(row['Motivo de retiro de lista de espera']),
-        paso_5a_flexibilidad_centro: clean(row['Flexibilidad de centro médico']),
-        paso_5b_condiciones_asistir: clean(row['Condiciones para asistir']),
-        paso_5b_motivo_no_asistir:   clean(row['Motivo de no asistencia']),
-        paso_6_medio_contacto:       clean(row['Medio de contacto preferido']),
-        estado_final:                mapEstadoFinal(clean(row['¿Desea continuar con esta atención pendiente?'])),
-        completado:                  true,
-        canal_respuesta:             'whatsapp',
-      })
+      const updReg: Record<string, unknown> = {
+        id_registro:         reg.id_registro,
+        _wa_estado:          waEstado,
+        whatsapp_enviado_at: hourSent,
+        whatsapp_estado:     waEstado,
+        whatsapp_error:      errorCoco,
+      }
+      if (waEstado === 'respondio') {
+        updReg.whatsapp_respondio_at = hourSent
+        // No sobreescribir completada_at si ya la tiene (respuesta por correo)
+        if (!yaCompletoPorCorreo && hourSent) {
+          updReg.encuesta_completada_at = hourSent
+        }
+      }
+      updatesRegistros.push(updReg)
+
+      if (waEstado === 'respondio') {
+        upsertRespuestas.push({
+          id_registro:                 reg.id_registro,
+          canal:                       'whatsapp',
+          paso_1_consentimiento:       clean(row['Consentimiento informado']),
+          paso_2_verificacion:         clean(row['Verificación de identidad']),
+          paso_3_info_correcta:        clean(row['Datos del caso']),
+          paso_4_desea_continuar:      clean(row['¿Desea continuar con esta atención pendiente?']),
+          motivo_retiro:               clean(row['Motivo de retiro de lista de espera']),
+          paso_5a_flexibilidad_centro: clean(row['Flexibilidad de centro médico']),
+          paso_5b_condiciones_asistir: clean(row['Condiciones para asistir']),
+          paso_5b_motivo_no_asistir:   clean(row['Motivo de no asistencia']),
+          paso_6_medio_contacto:       clean(row['Medio de contacto preferido']),
+          estado_final:                mapEstadoFinal(clean(row['¿Desea continuar con esta atención pendiente?'])),
+          completado:                  true,
+        })
+      }
     }
   }
 
@@ -195,7 +224,7 @@ export async function POST(request: NextRequest) {
   for (let i = 0; i < upsertRespuestas.length; i += BATCH) {
     const batch = upsertRespuestas.slice(i, i + BATCH)
     const { error } = await sb.from('respuestas')
-      .upsert(batch, { onConflict: 'id_registro', ignoreDuplicates: false })
+      .upsert(batch, { onConflict: 'id_registro, canal', ignoreDuplicates: false })
     if (error) errores += batch.length
     await sleep(150)
   }
