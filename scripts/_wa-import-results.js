@@ -193,7 +193,10 @@ async function main() {
       const estadoFinal = mapEstadoFinal(desea, motivoRetiro)
       upsertRespuestas.push({
         id_registro:               idRegistro,
+        canal:                     'whatsapp',
+        paso_1_consentimiento:     clean(row['Consentimiento informado']),
         paso_2_verificacion:       verificacion,
+        paso_3_info_correcta:      clean(row['Datos del caso']),
         paso_4_desea_continuar:    desea,
         motivo_retiro:             motivoRetiro,
         paso_5a_flexibilidad_centro: flexibilidad,
@@ -202,7 +205,6 @@ async function main() {
         paso_6_medio_contacto:     medioContacto,
         estado_final:              estadoFinal,
         completado:                true,
-        canal_respuesta:           'whatsapp',   // campo informativo
       })
     }
   }
@@ -257,7 +259,7 @@ async function main() {
     for (let i = 0; i < upsertRespuestas.length; i += BATCH) {
       const batch = upsertRespuestas.slice(i, i + BATCH)
       const { error } = await sb.from('respuestas')
-        .upsert(batch, { onConflict: 'id_registro', ignoreDuplicates: false })
+        .upsert(batch, { onConflict: 'id_registro, canal', ignoreDuplicates: false })
       if (error) { respErrores += batch.length; console.error(`   ⚠️  Batch ${i}: ${error.message}`) }
       process.stdout.write(`\r   Procesados: ${Math.min(i + BATCH, upsertRespuestas.length)}/${upsertRespuestas.length}`)
       await sleep(200)

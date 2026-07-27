@@ -66,6 +66,18 @@ export interface ProximaFaseData {
   ya_respondieron: number
 }
 
+export interface WaData {
+  enviados:          number
+  respondio:         number
+  no_respondio:      number
+  entregados:        number
+  leidos:            number
+  activo:            number
+  depurado_renuncia: number
+  no_autorizo:       number
+  no_verificado:     number
+}
+
 // ── Queries — todas usan RPC (sin límite de filas) ─────────────────────────────
 
 async function getCampanas(): Promise<CampanaInfo[]> {
@@ -164,6 +176,42 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
   }
 }
 
+const WA_CAMPANA_MAP: Record<string, string> = {
+  'ENCUESTA-CIRUGIA-01_1500': 'WA-CIRUGIA-01',
+  'ENCUESTA-CIRUGIA-02':      'WA-CIRUGIA-02',
+  'ENCUESTA-CE-01':           'WA-CE-01',
+  'ENCUESTA-PROC-01':         'WA-PROC-01',
+  'ENCUESTA-PROC-02':         'WA-PROC-02',
+}
+
+async function getWaData(sb: ReturnType<typeof createClient>, campanaId: string): Promise<WaData> {
+  const waCampanaId = WA_CAMPANA_MAP[campanaId]
+  if (!waCampanaId) return { enviados: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
+
+  const { data } = await sb
+    .from('registros')
+    .select('whatsapp_estado, estado, whatsapp_entregado_at, whatsapp_leido_at')
+    .eq('whatsapp_campana_id', waCampanaId)
+    .not('whatsapp_estado', 'is', null)
+
+  let enviados = 0, respondio = 0, no_respondio = 0, entregados = 0, leidos = 0
+  let activo = 0, depurado_renuncia = 0, no_autorizo = 0, no_verificado = 0
+  for (const r of ((data ?? []) as Record<string, unknown>[])) {
+    enviados++
+    if (r.whatsapp_estado === 'respondio') {
+      respondio++
+      if (r.estado === 'ACTIVO')              activo++
+      else if (r.estado === 'DEPURADO_RENUNCIA') depurado_renuncia++
+      else if (r.estado === 'NO_AUTORIZO')    no_autorizo++
+      else if (r.estado === 'NO_VERIFICADO')  no_verificado++
+    }
+    if (r.whatsapp_estado === 'no_respondio') no_respondio++
+    if (r.whatsapp_entregado_at)              entregados++
+    if (r.whatsapp_leido_at)                  leidos++
+  }
+  return { enviados, respondio, no_respondio, entregados, leidos, activo, depurado_renuncia, no_autorizo, no_verificado }
+}
+
 async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: string, completado: number): Promise<ProximaFaseData> {
   const { count: con_tel } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
@@ -201,13 +249,14 @@ export default async function EstadisticasPage({ searchParams }: Props) {
   const viewerUser = validateViewerSessionServer()
   const canExportWA = !!(viewerUser && WA_EXPORT_VIEWERS.includes(viewerUser))
 
-  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase] = await Promise.all([
+  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
     getEspecialidades(sb, campanaActual),
     getDispositivos(sb, campanaActual),
     getFormSteps(sb, campanaActual),
     getProximaFase(sb, campanaActual, campanaInfo.completado),
+    getWaData(sb, campanaActual),
   ])
 
   return (
@@ -221,6 +270,7 @@ export default async function EstadisticasPage({ searchParams }: Props) {
       dispositivos={dispositivos}
       formSteps={formSteps}
       proximaFase={proximaFase}
+      waData={waData}
       canExportWA={canExportWA}
     />
   )
