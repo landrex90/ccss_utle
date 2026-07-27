@@ -245,17 +245,19 @@ function WaImportButton({ campanaId }: { campanaId: string }) {
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface Props {
-  campanas:     CampanaInfo[]
-  campanaActual: string
-  campanaInfo:  CampanaInfo
-  estados:      EstadoRow[]
-  eficiencia:   EficienciaData
+  campanas:       CampanaInfo[]
+  campanaActual:  string
+  campanaInfo:    CampanaInfo
+  estados:        EstadoRow[]
+  eficiencia:     EficienciaData
   especialidades: EspecialidadRow[]
-  dispositivos: DispositivoData
-  formSteps:    FormSteps
-  proximaFase:  ProximaFaseData
-  waData:       WaData
-  canExportWA?: boolean
+  dispositivos:   DispositivoData
+  formSteps:      FormSteps
+  proximaFase:    ProximaFaseData
+  waData:         WaData
+  globalEstados:  EstadoRow[]
+  globalWaData:   WaData
+  canExportWA?:   boolean
 }
 
 type Tab = 'global' | 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente' | 'whatsapp'
@@ -281,7 +283,7 @@ function getTipo(id: string): TipoFiltro {
   return 'Todos'
 }
 
-export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, canExportWA }: Props) {
+export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, globalEstados, globalWaData, canExportWA }: Props) {
   const router      = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>((searchParams.get('tab') as Tab) ?? 'global')
@@ -415,19 +417,90 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         {/* ══ RESUMEN GLOBAL ══ */}
         {tab === 'global' && (
           <div>
+            {/* KPIs globales */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-              <KPI lbl="Campañas activas"        val={String(campanas.length)}                             sub="correo + WA en ejecución"                                        col={C.blue}  />
-              <KPI lbl="Correos enviados (total)" val={fmt(globalTotals.enviado)}                           sub="Suma de todas las campañas"                                       col={C.blue}  />
-              <KPI lbl="Completaron encuesta"     val={fmt(globalTotals.completado)}                        sub={`${pct(globalTotals.completado, globalTotals.enviado)} tasa promedio`} col={C.green} />
-              <KPI lbl="Pendientes global"        val={fmt(globalTotals.enviado - globalTotals.completado)} sub="Sin responder aún"                                               col={C.gray}  />
+              <KPI lbl="Campañas activas"         val={String(campanas.length)}                              sub="Correo + WA en ejecución"                                         col={C.blue}  />
+              <KPI lbl="Correos enviados (total)"  val={fmt(globalTotals.enviado)}                            sub="Suma de todas las campañas"                                        col={C.blue}  />
+              <KPI lbl="Completaron encuesta"      val={fmt(globalTotals.completado)}                         sub={`${pct(globalTotals.completado, globalTotals.enviado)} tasa global`} col={C.green} />
+              <KPI lbl="Pendientes (global)"       val={fmt(globalTotals.enviado - globalTotals.completado)}  sub="Sin responder en ningún canal"                                     col={C.gray}  />
             </div>
+
+            {/* Estados globales + WA global */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
+
+              {/* Estados agregados de todas las campañas */}
+              <div style={CARD}>
+                <div style={SEC}>Estados — todas las campañas</div>
+                <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ fontSize:10, fontWeight:700, letterSpacing:1, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'left', borderBottom:`1px solid ${C.border}` }}>Estado</th>
+                      <th style={{ fontSize:10, fontWeight:700, textTransform:'uppercase', color:C.gray, padding:'0 0 8px', textAlign:'right', borderBottom:`1px solid ${C.border}` }}>Registros</th>
+                      <th style={{ fontSize:10, color:C.gray, textAlign:'right', padding:'0 0 8px', borderBottom:`1px solid ${C.border}` }}>% base</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {globalEstados.map(e => (
+                      <tr key={e.estado}>
+                        <td style={{ fontSize:12, padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{pill(e.estado)}</td>
+                        <td style={{ fontSize:13, fontWeight:700, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{fmt(e.count)}</td>
+                        <td style={{ fontSize:11, color:C.gray, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{pct(e.count, globalTotals.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* WA global */}
+              <div style={CARD}>
+                <div style={SEC}>Canal WhatsApp — resultado global</div>
+                {globalWaData.enviados === 0 ? (
+                  <div style={{ textAlign:'center', padding:'30px 0', color:C.gray, fontSize:12 }}>Sin datos WA aún</div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F0FDF4', border:`1px solid #BBF7D0` }}>
+                      <div style={{ fontSize:12, fontWeight:600 }}>💬 Contactados por WA</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.wa }}>{fmt(globalWaData.enviados)}</div>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.greenLt, border:`1px solid #A7F3D0` }}>
+                      <div>
+                        <div style={{ fontSize:12, fontWeight:700, color:C.green }}>✅ ACTIVO — quieren continuar</div>
+                        <div style={{ fontSize:11, color:C.gray }}>{pct(globalWaData.activo, globalWaData.enviados)} del total WA</div>
+                      </div>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{fmt(globalWaData.activo)}</div>
+                    </div>
+                    {globalWaData.depurado_renuncia > 0 && (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.amberLt, border:`1px solid #FCD34D` }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:C.amber }}>⚠️ DEPURADO — retiro voluntario</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:C.amber }}>{fmt(globalWaData.depurado_renuncia)}</div>
+                      </div>
+                    )}
+                    {globalWaData.no_autorizo > 0 && (
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F5F3FF', border:'1px solid #C4B5FD' }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:C.purple }}>🚫 No autorizaron el bot</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:C.purple }}>{fmt(globalWaData.no_autorizo)}</div>
+                      </div>
+                    )}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F8FAFC', border:`1px solid ${C.border}` }}>
+                      <div>
+                        <div style={{ fontSize:12, fontWeight:700, color:C.gray }}>🔕 Sin respuesta WA → voicebot</div>
+                        <div style={{ fontSize:11, color:C.gray }}>{pct(globalWaData.no_respondio, globalWaData.enviados)} del total WA</div>
+                      </div>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.gray }}>{fmt(globalWaData.no_respondio)}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tabla comparativa de campañas */}
             <div style={CARD}>
-              <div style={SEC}>Detalle por campaña — haga clic en una fila para ver el detalle completo</div>
+              <div style={SEC}>Comparativa por campaña — clic en una fila para ver el detalle</div>
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                   <thead>
                     <tr style={{ borderBottom:`2px solid ${C.border}` }}>
-                      <th style={{ textAlign:'left', padding:'6px 10px 10px 0', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Campaña</th>
+                      <th style={{ textAlign:'left',  padding:'6px 10px 10px 0', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Campaña</th>
                       <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Enviados</th>
                       <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Abrieron</th>
                       <th style={{ textAlign:'right', padding:'6px 8px 10px', color:C.gray, fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>Completaron</th>
@@ -437,9 +510,9 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                   </thead>
                   <tbody>
                     {campanas.map(cc => {
-                      const tasa = cc.enviado ? (cc.completado / cc.enviado) * 100 : 0
-                      const tipo = cc.id.includes('CIRUGIA') ? 'CIR' : cc.id.includes('-CE') || cc.id.includes('_CE') ? 'CE' : 'PROC'
-                      const tipoBg = tipo === 'CIR' ? '#DBEAFE' : tipo === 'CE' ? '#DCFCE7' : '#FEF3C7'
+                      const tasa    = cc.enviado ? (cc.completado / cc.enviado) * 100 : 0
+                      const tipo    = cc.id.includes('CIRUGIA') ? 'CIR' : (cc.id.includes('-CE') || cc.id.includes('_CE')) ? 'CE' : 'PROC'
+                      const tipoBg  = tipo === 'CIR' ? '#DBEAFE' : tipo === 'CE' ? '#DCFCE7' : '#FEF3C7'
                       const tipoCol = tipo === 'CIR' ? C.blue : tipo === 'CE' ? C.green : C.amber
                       const isActual = cc.id === campanaActual
                       return (
@@ -448,15 +521,18 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                           style={{ cursor:'pointer', borderBottom:`1px solid #F1F5F9`, background: isActual ? C.blueLt : 'transparent' }}
                         >
                           <td style={{ padding:'10px 10px 10px 0', fontWeight: isActual ? 700 : 400 }}>
-                            <span style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:12, background: tipoBg, color: tipoCol, marginRight:7 }}>{tipo}</span>
+                            <span style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:12, background:tipoBg, color:tipoCol, marginRight:7 }}>{tipo}</span>
                             {cc.id.replace('ENCUESTA-', '').replace(/_\d+$/, '')}
                           </td>
                           <td style={{ textAlign:'right', padding:'10px 8px', fontVariantNumeric:'tabular-nums' }}>{fmt(cc.enviado)}</td>
-                          <td style={{ textAlign:'right', padding:'10px 8px', color:C.blue, fontVariantNumeric:'tabular-nums' }}>{fmt(cc.accedieron)}<span style={{ color:C.gray, fontSize:10, marginLeft:4 }}>({pct(cc.accedieron, cc.enviado)})</span></td>
+                          <td style={{ textAlign:'right', padding:'10px 8px', color:C.blue, fontVariantNumeric:'tabular-nums' }}>
+                            {fmt(cc.accedieron)}
+                            <span style={{ color:C.gray, fontSize:10, marginLeft:4 }}>({pct(cc.accedieron, cc.enviado)})</span>
+                          </td>
                           <td style={{ textAlign:'right', padding:'10px 8px', color:C.green, fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{fmt(cc.completado)}</td>
-                          <td style={{ textAlign:'right', padding:'10px 8px' }}>
+                          <td style={{ textAlign:'right', padding:'10px 8px', minWidth:80 }}>
                             <span style={{ fontWeight:800, color: tasa >= 30 ? C.green : tasa >= 15 ? C.amber : C.gray }}>{Math.round(tasa * 10) / 10}%</span>
-                            <div style={{ height:4, background:C.border, borderRadius:2, marginTop:4, width:'100%' }}>
+                            <div style={{ height:4, background:C.border, borderRadius:2, marginTop:4 }}>
                               <div style={{ height:'100%', borderRadius:2, background: tasa >= 30 ? C.green : tasa >= 15 ? C.amber : C.gray, width:`${Math.min(100, tasa * 2.5)}%` }} />
                             </div>
                           </td>
@@ -467,7 +543,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:`2px solid ${C.border}` }}>
-                      <td style={{ padding:'10px 10px 6px 0', fontWeight:700, color:C.text }}>TOTAL</td>
+                      <td style={{ padding:'10px 10px 6px 0', fontWeight:700 }}>TOTAL</td>
                       <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.blue, fontVariantNumeric:'tabular-nums' }}>{fmt(globalTotals.enviado)}</td>
                       <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.blue, fontVariantNumeric:'tabular-nums' }}>{fmt(globalTotals.accedieron)}</td>
                       <td style={{ textAlign:'right', padding:'10px 8px 6px', fontWeight:700, color:C.green, fontVariantNumeric:'tabular-nums' }}>{fmt(globalTotals.completado)}</td>
@@ -478,7 +554,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                 </table>
               </div>
               <div style={{ fontSize:11, color:C.gray, marginTop:10, fontStyle:'italic' }}>
-                * Un mismo paciente puede aparecer en varias campañas (cirugía + consulta, etc.). El total no representa pacientes únicos.
+                * Un mismo paciente puede estar en varias campañas (ej: cirugía + consulta externa). El total no representa pacientes únicos.
               </div>
             </div>
           </div>
