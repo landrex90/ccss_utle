@@ -212,40 +212,15 @@ async function getWaData(sb: ReturnType<typeof createClient>, campanaId: string)
   return { enviados, respondio, no_respondio, entregados, leidos, activo, depurado_renuncia, no_autorizo, no_verificado }
 }
 
-async function getGlobalEstados(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[]): Promise<EstadoRow[]> {
+// Fetch estados y WA por cada campaña individualmente para poder filtrar dinámicamente en el cliente
+async function getEstadosPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[]): Promise<Record<string, EstadoRow[]>> {
   const results = await Promise.all(campanas.map(c => getEstados(sb, c.id)))
-  const merged: Record<string, number> = {}
-  for (const rows of results) {
-    for (const r of rows) merged[r.estado] = (merged[r.estado] ?? 0) + r.count
-  }
-  return Object.entries(merged)
-    .map(([estado, count]) => ({ estado, count }))
-    .sort((a, b) => b.count - a.count)
+  return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
-async function getGlobalWaData(sb: ReturnType<typeof createClient>): Promise<WaData> {
-  const { data } = await sb
-    .from('registros')
-    .select('whatsapp_estado, estado, whatsapp_entregado_at, whatsapp_leido_at')
-    .not('whatsapp_campana_id', 'is', null)
-    .not('whatsapp_estado', 'is', null)
-
-  let enviados = 0, respondio = 0, no_respondio = 0, entregados = 0, leidos = 0
-  let activo = 0, depurado_renuncia = 0, no_autorizo = 0, no_verificado = 0
-  for (const r of ((data ?? []) as Record<string, unknown>[])) {
-    enviados++
-    if (r.whatsapp_estado === 'respondio') {
-      respondio++
-      if (r.estado === 'ACTIVO')               activo++
-      else if (r.estado === 'DEPURADO_RENUNCIA') depurado_renuncia++
-      else if (r.estado === 'NO_AUTORIZO')     no_autorizo++
-      else if (r.estado === 'NO_VERIFICADO')   no_verificado++
-    }
-    if (r.whatsapp_estado === 'no_respondio') no_respondio++
-    if (r.whatsapp_entregado_at)              entregados++
-    if (r.whatsapp_leido_at)                  leidos++
-  }
-  return { enviados, respondio, no_respondio, entregados, leidos, activo, depurado_renuncia, no_autorizo, no_verificado }
+async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[]): Promise<Record<string, WaData>> {
+  const results = await Promise.all(campanas.map(c => getWaData(sb, c.id)))
+  return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
 async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: string, completado: number): Promise<ProximaFaseData> {
@@ -285,7 +260,7 @@ export default async function EstadisticasPage({ searchParams }: Props) {
   const viewerUser = validateViewerSessionServer()
   const canExportWA = !!(viewerUser && WA_EXPORT_VIEWERS.includes(viewerUser))
 
-  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, globalEstados, globalWaData] = await Promise.all([
+  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
     getEspecialidades(sb, campanaActual),
@@ -293,8 +268,8 @@ export default async function EstadisticasPage({ searchParams }: Props) {
     getFormSteps(sb, campanaActual),
     getProximaFase(sb, campanaActual, campanaInfo.completado),
     getWaData(sb, campanaActual),
-    getGlobalEstados(sb, campanas),
-    getGlobalWaData(sb),
+    getEstadosPorCampana(sb, campanas),
+    getWaPorCampana(sb, campanas),
   ])
 
   return (
@@ -309,8 +284,8 @@ export default async function EstadisticasPage({ searchParams }: Props) {
       formSteps={formSteps}
       proximaFase={proximaFase}
       waData={waData}
-      globalEstados={globalEstados}
-      globalWaData={globalWaData}
+      estadosPorCampana={estadosPorCampana}
+      waPorCampana={waPorCampana}
       canExportWA={canExportWA}
     />
   )

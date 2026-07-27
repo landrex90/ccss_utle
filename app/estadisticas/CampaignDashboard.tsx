@@ -245,19 +245,41 @@ function WaImportButton({ campanaId }: { campanaId: string }) {
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface Props {
-  campanas:       CampanaInfo[]
-  campanaActual:  string
-  campanaInfo:    CampanaInfo
-  estados:        EstadoRow[]
-  eficiencia:     EficienciaData
-  especialidades: EspecialidadRow[]
-  dispositivos:   DispositivoData
-  formSteps:      FormSteps
-  proximaFase:    ProximaFaseData
-  waData:         WaData
-  globalEstados:  EstadoRow[]
-  globalWaData:   WaData
-  canExportWA?:   boolean
+  campanas:          CampanaInfo[]
+  campanaActual:     string
+  campanaInfo:       CampanaInfo
+  estados:           EstadoRow[]
+  eficiencia:        EficienciaData
+  especialidades:    EspecialidadRow[]
+  dispositivos:      DispositivoData
+  formSteps:         FormSteps
+  proximaFase:       ProximaFaseData
+  waData:            WaData
+  estadosPorCampana: Record<string, EstadoRow[]>
+  waPorCampana:      Record<string, WaData>
+  canExportWA?:      boolean
+}
+
+const EMPTY_WA: WaData = { enviados:0, respondio:0, no_respondio:0, entregados:0, leidos:0, activo:0, depurado_renuncia:0, no_autorizo:0, no_verificado:0 }
+
+function mergeEstados(allEstados: EstadoRow[][]): EstadoRow[] {
+  const m: Record<string, number> = {}
+  for (const rows of allEstados) for (const r of rows) m[r.estado] = (m[r.estado] ?? 0) + r.count
+  return Object.entries(m).map(([estado, count]) => ({ estado, count })).sort((a, b) => b.count - a.count)
+}
+
+function mergeWa(all: WaData[]): WaData {
+  return all.reduce((a, w) => ({
+    enviados:          a.enviados          + w.enviados,
+    respondio:         a.respondio         + w.respondio,
+    no_respondio:      a.no_respondio      + w.no_respondio,
+    entregados:        a.entregados        + w.entregados,
+    leidos:            a.leidos            + w.leidos,
+    activo:            a.activo            + w.activo,
+    depurado_renuncia: a.depurado_renuncia + w.depurado_renuncia,
+    no_autorizo:       a.no_autorizo       + w.no_autorizo,
+    no_verificado:     a.no_verificado     + w.no_verificado,
+  }), { ...EMPTY_WA })
 }
 
 type Tab = 'global' | 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente' | 'whatsapp'
@@ -283,7 +305,7 @@ function getTipo(id: string): TipoFiltro {
   return 'Todos'
 }
 
-export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, globalEstados, globalWaData, canExportWA }: Props) {
+export default function CampaignDashboard({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, canExportWA }: Props) {
   const router      = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>((searchParams.get('tab') as Tab) ?? 'global')
@@ -318,13 +340,17 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
   const totalOsMax = Math.max(...Object.values(dispositivos.os), 1)
   const totalBrMax = Math.max(...Object.values(dispositivos.browser), 1)
 
-  // Totales globales (suma de todas las campañas)
-  const globalTotals = campanas.reduce((acc, cc) => ({
+  // Totales globales — respetan el filtro activo (Cirugías / CE / Procedimientos)
+  const globalTotals = campanasFiltradas.reduce((acc, cc) => ({
     total:      acc.total      + cc.total,
     enviado:    acc.enviado    + cc.enviado,
     accedieron: acc.accedieron + cc.accedieron,
     completado: acc.completado + cc.completado,
   }), { total: 0, enviado: 0, accedieron: 0, completado: 0 })
+
+  // Estados y WA agregados desde las campañas filtradas
+  const gEstados = mergeEstados(campanasFiltradas.map(cc => estadosPorCampana[cc.id] ?? []))
+  const gWa      = mergeWa(campanasFiltradas.map(cc => waPorCampana[cc.id] ?? EMPTY_WA))
 
   // Completados por canal (para separar correo vs WA en el embudo)
   const waCompletados     = waData.activo + waData.depurado_renuncia
@@ -417,20 +443,20 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         {/* ══ RESUMEN GLOBAL ══ */}
         {tab === 'global' && (
           <div>
-            {/* KPIs globales */}
+            {/* KPIs globales — respetan el filtro activo */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-              <KPI lbl="Campañas activas"         val={String(campanas.length)}                              sub="Correo + WA en ejecución"                                         col={C.blue}  />
-              <KPI lbl="Correos enviados (total)"  val={fmt(globalTotals.enviado)}                            sub="Suma de todas las campañas"                                        col={C.blue}  />
-              <KPI lbl="Completaron encuesta"      val={fmt(globalTotals.completado)}                         sub={`${pct(globalTotals.completado, globalTotals.enviado)} tasa global`} col={C.green} />
-              <KPI lbl="Pendientes (global)"       val={fmt(globalTotals.enviado - globalTotals.completado)}  sub="Sin responder en ningún canal"                                     col={C.gray}  />
+              <KPI lbl={tipoFiltro === 'Todos' ? 'Campañas activas' : `Campañas ${tipoFiltro}`} val={String(campanasFiltradas.length)} sub={tipoFiltro === 'Todos' ? 'Correo + WA en ejecución' : `de ${campanas.length} totales`} col={C.blue}  />
+              <KPI lbl="Correos enviados"          val={fmt(globalTotals.enviado)}                            sub={tipoFiltro === 'Todos' ? 'Suma de todas las campañas' : `Solo campañas ${tipoFiltro}`} col={C.blue}  />
+              <KPI lbl="Completaron encuesta"      val={fmt(globalTotals.completado)}                         sub={`${pct(globalTotals.completado, globalTotals.enviado)} tasa`}     col={C.green} />
+              <KPI lbl="Pendientes"                val={fmt(globalTotals.enviado - globalTotals.completado)}  sub="Sin responder en ningún canal"                                     col={C.gray}  />
             </div>
 
             {/* Estados globales + WA global */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
 
-              {/* Estados agregados de todas las campañas */}
+              {/* Estados agregados de las campañas filtradas */}
               <div style={CARD}>
-                <div style={SEC}>Estados — todas las campañas</div>
+                <div style={SEC}>Estados — {tipoFiltro === 'Todos' ? 'todas las campañas' : tipoFiltro}</div>
                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                   <thead>
                     <tr>
@@ -440,7 +466,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                     </tr>
                   </thead>
                   <tbody>
-                    {globalEstados.map(e => (
+                    {gEstados.map(e => (
                       <tr key={e.estado}>
                         <td style={{ fontSize:12, padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{pill(e.estado)}</td>
                         <td style={{ fontSize:13, fontWeight:700, textAlign:'right', padding:'7px 0', borderBottom:`1px solid #F1F5F9` }}>{fmt(e.count)}</td>
@@ -451,42 +477,42 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                 </table>
               </div>
 
-              {/* WA global */}
+              {/* WA — campañas filtradas */}
               <div style={CARD}>
-                <div style={SEC}>Canal WhatsApp — resultado global</div>
-                {globalWaData.enviados === 0 ? (
+                <div style={SEC}>Canal WhatsApp — {tipoFiltro === 'Todos' ? 'resultado global' : tipoFiltro}</div>
+                {gWa.enviados === 0 ? (
                   <div style={{ textAlign:'center', padding:'30px 0', color:C.gray, fontSize:12 }}>Sin datos WA aún</div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F0FDF4', border:`1px solid #BBF7D0` }}>
                       <div style={{ fontSize:12, fontWeight:600 }}>💬 Contactados por WA</div>
-                      <div style={{ fontSize:22, fontWeight:800, color:C.wa }}>{fmt(globalWaData.enviados)}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.wa }}>{fmt(gWa.enviados)}</div>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.greenLt, border:`1px solid #A7F3D0` }}>
                       <div>
                         <div style={{ fontSize:12, fontWeight:700, color:C.green }}>✅ ACTIVO — quieren continuar</div>
-                        <div style={{ fontSize:11, color:C.gray }}>{pct(globalWaData.activo, globalWaData.enviados)} del total WA</div>
+                        <div style={{ fontSize:11, color:C.gray }}>{pct(gWa.activo, gWa.enviados)} del total WA</div>
                       </div>
-                      <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{fmt(globalWaData.activo)}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{fmt(gWa.activo)}</div>
                     </div>
-                    {globalWaData.depurado_renuncia > 0 && (
+                    {gWa.depurado_renuncia > 0 && (
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:C.amberLt, border:`1px solid #FCD34D` }}>
                         <div style={{ fontSize:12, fontWeight:700, color:C.amber }}>⚠️ DEPURADO — retiro voluntario</div>
-                        <div style={{ fontSize:22, fontWeight:800, color:C.amber }}>{fmt(globalWaData.depurado_renuncia)}</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:C.amber }}>{fmt(gWa.depurado_renuncia)}</div>
                       </div>
                     )}
-                    {globalWaData.no_autorizo > 0 && (
+                    {gWa.no_autorizo > 0 && (
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F5F3FF', border:'1px solid #C4B5FD' }}>
                         <div style={{ fontSize:12, fontWeight:700, color:C.purple }}>🚫 No autorizaron el bot</div>
-                        <div style={{ fontSize:22, fontWeight:800, color:C.purple }}>{fmt(globalWaData.no_autorizo)}</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:C.purple }}>{fmt(gWa.no_autorizo)}</div>
                       </div>
                     )}
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'11px 14px', borderRadius:8, background:'#F8FAFC', border:`1px solid ${C.border}` }}>
                       <div>
                         <div style={{ fontSize:12, fontWeight:700, color:C.gray }}>🔕 Sin respuesta WA → voicebot</div>
-                        <div style={{ fontSize:11, color:C.gray }}>{pct(globalWaData.no_respondio, globalWaData.enviados)} del total WA</div>
+                        <div style={{ fontSize:11, color:C.gray }}>{pct(gWa.no_respondio, gWa.enviados)} del total WA</div>
                       </div>
-                      <div style={{ fontSize:22, fontWeight:800, color:C.gray }}>{fmt(globalWaData.no_respondio)}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:C.gray }}>{fmt(gWa.no_respondio)}</div>
                     </div>
                   </div>
                 )}
@@ -495,7 +521,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
 
             {/* Tabla comparativa de campañas */}
             <div style={CARD}>
-              <div style={SEC}>Comparativa por campaña — clic en una fila para ver el detalle</div>
+              <div style={SEC}>Comparativa por campaña{tipoFiltro !== 'Todos' ? ` — ${tipoFiltro}` : ''} — clic en una fila para ver el detalle</div>
               <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                   <thead>
@@ -509,7 +535,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                     </tr>
                   </thead>
                   <tbody>
-                    {campanas.map(cc => {
+                    {campanasFiltradas.map(cc => {
                       const tasa    = cc.enviado ? (cc.completado / cc.enviado) * 100 : 0
                       const tipo    = cc.id.includes('CIRUGIA') ? 'CIR' : (cc.id.includes('-CE') || cc.id.includes('_CE')) ? 'CE' : 'PROC'
                       const tipoBg  = tipo === 'CIR' ? '#DBEAFE' : tipo === 'CE' ? '#DCFCE7' : '#FEF3C7'
