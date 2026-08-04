@@ -1,0 +1,77 @@
+name: Encuesta CE-02 — C. Externa Subsecuentes HCG (escalonado)
+
+on:
+  schedule:
+    # Día 2 — Martes 5 agosto 2026, 8:00am Costa Rica (UTC-6 = 14:00 UTC)
+    - cron: '0 14 5 8 *'
+    # Día 3 — Miércoles 6 agosto
+    - cron: '0 14 6 8 *'
+    # Día 4 — Jueves 7 agosto
+    - cron: '0 14 7 8 *'
+    # Día 5 — Viernes 8 agosto
+    - cron: '0 14 8 8 *'
+    # Día 6 — Sábado 9 agosto
+    - cron: '0 14 9 8 *'
+    # Día 7 — Domingo 10 agosto
+    - cron: '0 14 10 8 *'
+
+  workflow_dispatch:
+    inputs:
+      dia:
+        description: 'Día de envío (1=26842, 2=4096, 3=832, 4=183, 5=37, 6=8, 7=2 correos)'
+        required: true
+        type: choice
+        options: ['1', '2', '3', '4', '5', '6', '7']
+      dry_run:
+        description: 'Dry run (no envía correos reales)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Determinar día de envío
+        id: dia
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "DIA=${{ github.event.inputs.dia }}" >> $GITHUB_OUTPUT
+          else
+            # Calcular día según fecha actual (Día 1 = 4 ago, Día 2 = 5 ago, ...)
+            START="2026-08-04"
+            TODAY=$(date -u +%Y-%m-%d)
+            DIFF=$(( ( $(date -d "$TODAY" +%s) - $(date -d "$START" +%s) ) / 86400 ))
+            DIA=$((DIFF + 1))
+            echo "DIA=$DIA" >> $GITHUB_OUTPUT
+            echo "Fecha inicio: $START | Hoy: $TODAY | Día calculado: $DIA"
+          fi
+
+      - name: Ejecutar envío CE-02 Día ${{ steps.dia.outputs.DIA }}
+        run: |
+          ARGS="--campana ENCUESTA-CE-02 --tipo consulta --dia ${{ steps.dia.outputs.DIA }}"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+            echo "⚠️  DRY RUN activado"
+          fi
+          echo "▶️  Ejecutando: node scripts/_encuesta-send.js $ARGS"
+          node scripts/_encuesta-send.js $ARGS
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

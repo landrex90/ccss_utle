@@ -58,6 +58,7 @@ const CAMPANA_ID = arg('--campana')
 const TIPO       = arg('--tipo')
 const LIMITE     = parseInt(arg('--limite') || '0', 10) || null
 const DRY_RUN    = process.argv.includes('--dry-run')
+const DIA_ENVIO  = parseInt(arg('--dia') || '0', 10) || null  // null = sin filtro por día
 
 const TIPOS_VALIDOS = ['cirugia', 'consulta', 'procedimiento']
 
@@ -113,7 +114,7 @@ async function getRegistros() {
 
     const toFetch = LIMITE ? Math.min(BATCH_SIZE, LIMITE - registros.length) : BATCH_SIZE
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('registros')
       .select('id_registro, nombre_paciente, numero_asegurado, correo, especialidad, centro_medico, tipo_atencion, token, encuesta_campana_id')
       .eq('warmup_estado', 'enviado')
@@ -121,8 +122,12 @@ async function getRegistros() {
       .is('encuesta_campana_id', null)   // Solo los que no tienen encuesta asignada aún
       .not('correo', 'is', null)
       .not('token', 'is', null)
-      .range(from, from + toFetch - 1)
-      .order('id_registro')
+
+    if (DIA_ENVIO !== null) query = query.eq('dia_envio', DIA_ENVIO)
+
+    query = query.range(from, from + toFetch - 1).order('id_registro')
+
+    const { data, error } = await query
 
     if (error) {
       console.error(`❌ Error consultando Supabase: ${error.message}`)
