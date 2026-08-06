@@ -18,6 +18,7 @@ const C = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const pct  = (n: number, d: number) => d ? `${Math.round((n/d)*100)}%` : '—'
+const pct1 = (n: number, d: number) => d ? `${(Math.round((n/d)*1000)/10).toFixed(1)}%` : '—'
 const fmt  = (n: number) => n.toLocaleString('es-CR')
 const fmtMin = (m: number | null) => {
   if (m === null) return '—'
@@ -249,15 +250,19 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
     ? campanas
     : campanas.filter(cc => getTipo(cc.id) === tipoFiltro)
 
-  // Tabs visibles: en modo Todos → solo Resumen General; en modo campaña → todo menos global
-  const visibleTabs = tipoFiltro === 'Todos'
-    ? TABS.filter(t => t.id === 'global')
-    : TABS.filter(t => t.id !== 'global')
+  // modoDetalle: solo cuando el usuario seleccionó explícitamente una campaña del dropdown
+  const campanaExplicita = !!searchParams.get('campana')
+  const modoDetalle = campanaExplicita && tipoFiltro !== 'Todos'
 
-  // Reset tab al cambiar modo
+  // Tabs visibles: resumen de tipo → solo global; detalle de campaña → todo menos global
+  const visibleTabs = modoDetalle
+    ? TABS.filter(t => t.id !== 'global')
+    : TABS.filter(t => t.id === 'global')
+
+  // Reset tab al cambiar entre resumen y detalle
   useEffect(() => {
-    setTab(tipoFiltro === 'Todos' ? 'global' : 'resumen')
-  }, [tipoFiltro])
+    setTab(modoDetalle ? 'resumen' : 'global')
+  }, [modoDetalle])
 
   const refresh = useCallback(() => { router.refresh(); setCd(REFRESH_SECS) }, [router])
   useEffect(() => {
@@ -292,6 +297,11 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
   const gEstados = mergeEstados(campanasFiltradas.map(cc => estadosPorCampana[cc.id] ?? []))
   const gWa      = mergeWa(campanasFiltradas.map(cc => waPorCampana[cc.id] ?? EMPTY_WA))
 
+  // Valores derivados para el resumen (correo vs WA)
+  const gWaCompletados     = gWa.activo + gWa.depurado_renuncia
+  const gCorreoCompletados = Math.max(0, globalTotals.completado - gWaCompletados)
+  const gPendientes        = globalTotals.enviado - globalTotals.completado
+
   // Completados por canal (para separar correo vs WA en el embudo)
   const waCompletados     = waData.activo + waData.depurado_renuncia
   const correoCompletados = Math.max(0, c.completado - waCompletados)
@@ -311,20 +321,24 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
           <div>
             <div style={{ fontSize:10, color:'#89B8DC', letterSpacing:2, textTransform:'uppercase' }}>CCSS · Unidad Técnica de Listas de Espera</div>
             <div style={{ fontSize:17, fontWeight:700, color:'#fff', marginTop:2 }}>
-              CLEO · {tipoFiltro === 'Todos' ? 'Resumen Global' : `Dashboard ${tipoFiltro} — ${campanaActual.replace('ENCUESTA-', '').replace(/_\d+$/, '')}`}
+              CLEO · {tipoFiltro === 'Todos'
+                ? 'Resumen Global'
+                : modoDetalle
+                  ? `Dashboard ${tipoFiltro} — ${campanaActual.replace('ENCUESTA-', '').replace(/_\d+$/, '')}`
+                  : `Resumen de ${tipoFiltro}`}
             </div>
           </div>
           <div style={{ textAlign:'right' }}>
-            {tipoFiltro !== 'Todos' && (
+            {modoDetalle && (
               <div style={{ display:'flex', gap:8, justifyContent:'flex-end', flexWrap:'wrap' }}>
                 <span style={{ fontSize:11, background:'rgba(255,255,255,.15)', color:'#fff', padding:'3px 10px', borderRadius:20 }}>{campanaActual}</span>
               </div>
             )}
             <div style={{ fontSize:11, color:'#89B8DC', marginTop:6 }}>
               <span style={{ display:'inline-block', width:6, height:6, background:'#22C55E', borderRadius:'50%', marginRight:4, verticalAlign:'middle', animation:'pulse 2s infinite' }} />
-              {tipoFiltro === 'Todos'
-                ? `${campanas.length} campañas · ${fmt(globalTotals.completado)} completaron · ${pct(globalTotals.completado, globalTotals.enviado)} tasa global`
-                : `${fmtDate(c.fecha_inicio)} · ${fmt(c.completado)} completaron · ${c.accedieron > 0 ? pct(c.completado, c.enviado) : '0%'} conversión`
+              {modoDetalle
+                ? `${fmtDate(c.fecha_inicio)} · ${fmt(c.completado)} completaron · ${c.accedieron > 0 ? pct(c.completado, c.enviado) : '0%'} conversión`
+                : `${campanasFiltradas.length} campaña${campanasFiltradas.length !== 1 ? 's' : ''} · ${fmt(globalTotals.completado)} completaron · ${pct(globalTotals.completado, globalTotals.enviado)} tasa`
               }
             </div>
           </div>
@@ -334,20 +348,13 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
           {TIPOS.map(t => (
             <button key={t} onClick={() => {
-              if (t === 'Todos') {
-                router.push(`/estadisticas?tipo=Todos`)
-                setTab('global')
-                return
-              }
-              const filtered = campanas.filter(cc => getTipo(cc.id) === t)
-              const targetCampana = filtered.find(cc => cc.id === campanaActual)
-                ? campanaActual
-                : (filtered[0]?.id ?? campanaActual)
-              router.push(`/estadisticas?campana=${encodeURIComponent(targetCampana)}&tipo=${encodeURIComponent(t)}`)
-              setTab('resumen')
+              // Siempre navega sin campana → muestra resumen del tipo
+              router.push(`/estadisticas?tipo=${encodeURIComponent(t)}`)
+              setTab('global')
             }} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, cursor:'pointer', border:'1px solid rgba(255,255,255,.35)',
-              background: tipoFiltro === t ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.08)',
-              color: tipoFiltro === t ? '#fff' : '#89B8DC', fontWeight: tipoFiltro === t ? 700 : 400 }}>
+              background: tipoFiltro === t && !modoDetalle ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.08)',
+              color: tipoFiltro === t && !modoDetalle ? '#fff' : '#89B8DC',
+              fontWeight: tipoFiltro === t && !modoDetalle ? 700 : 400 }}>
               {t}
             </button>
           ))}
@@ -359,13 +366,25 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
                   Sin campañas de {tipoFiltro} aún
                 </span>
               ) : (
-                <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)}
+                <select
+                  value={modoDetalle ? campanaActual : ''}
+                  onChange={e => {
+                    if (e.target.value) {
+                      router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)
+                      setTab('resumen')
+                    }
+                  }}
                   style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
-                  {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
+                  <option value="" style={{ color:C.text }}>— Ver campaña específica —</option>
+                  {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id.replace('ENCUESTA-','')}</option>)}
                 </select>
               )}
-              <button onClick={() => handleExport('registros')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Registros Excel</button>
-              <button onClick={() => handleExport('respuestas')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Respuestas Excel</button>
+              {modoDetalle && (
+                <>
+                  <button onClick={() => handleExport('registros')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Registros Excel</button>
+                  <button onClick={() => handleExport('respuestas')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Respuestas Excel</button>
+                </>
+              )}
             </>
           )}
           <span style={{ fontSize:11, color:'#89B8DC', marginLeft:'auto' }}>
@@ -401,19 +420,12 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         {tab === 'global' && (
           <div>
             {/* KPIs globales — correo / WA / pendientes */}
-            {(() => {
-              const gWaCompletados = gWa.activo + gWa.depurado_renuncia
-              const gCorreoCompletados = Math.max(0, globalTotals.completado - gWaCompletados)
-              const gPendientes = globalTotals.enviado - globalTotals.completado
-              return (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-                  <KPI lbl="Correos enviados" val={fmt(globalTotals.enviado)} sub={`${campanasFiltradas.length} campaña${campanasFiltradas.length !== 1 ? 's' : ''} activas`} col={C.blue} />
-                  <KPI lbl="Respondieron por correo" val={fmt(gCorreoCompletados)} sub={`${pct(gCorreoCompletados, globalTotals.enviado)} del total enviado`} col={C.green} />
-                  <KPI lbl="Respondieron por WhatsApp" val={fmt(gWaCompletados)} sub={`${pct(gWaCompletados, globalTotals.enviado)} del total enviado`} col={C.wa} />
-                  <KPI lbl="Sin respuesta" val={fmt(gPendientes)} sub={`${pct(gPendientes, globalTotals.enviado)} pasan a siguiente canal`} col={C.gray} />
-                </div>
-              )
-            })()}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+              <KPI lbl="Correos enviados"         val={fmt(globalTotals.enviado)}      sub={`${campanasFiltradas.length} campaña${campanasFiltradas.length !== 1 ? 's' : ''} activas`}  col={C.blue}  />
+              <KPI lbl="Respondieron por correo"  val={fmt(gCorreoCompletados)}         sub={`${pct(gCorreoCompletados, globalTotals.enviado)} del total enviado`}                        col={C.green} />
+              <KPI lbl="Respondieron por WA"      val={fmt(gWaCompletados)}             sub={`${pct1(gWaCompletados, globalTotals.enviado)} del total enviado`}                           col={C.wa}    />
+              <KPI lbl="Sin respuesta"            val={fmt(gPendientes)}                sub={`${pct(gPendientes, globalTotals.enviado)} pasan a siguiente canal`}                         col={C.gray}  />
+            </div>
 
             {/* Estados globales + WA global */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
