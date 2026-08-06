@@ -192,11 +192,11 @@ async function getWaData(sb: ReturnType<typeof createClient>, campanaId: string)
     .from('registros')
     .select('whatsapp_estado, estado, whatsapp_entregado_at, whatsapp_leido_at')
     .eq('whatsapp_campana_id', waCampanaId)
-    .not('whatsapp_estado', 'is', null)
 
   let enviados = 0, respondio = 0, no_respondio = 0, entregados = 0, leidos = 0
   let activo = 0, depurado_renuncia = 0, no_autorizo = 0, no_verificado = 0
   for (const r of ((data ?? []) as Record<string, unknown>[])) {
+    if (r.whatsapp_estado === 'sin_celular') continue
     enviados++
     if (r.whatsapp_estado === 'respondio') {
       respondio++

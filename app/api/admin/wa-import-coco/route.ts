@@ -13,25 +13,47 @@ const WA_CAMPANA: Record<string, string> = {
   'ENCUESTA-PROC-01':         'WA-PROC-01',
 }
 
-function mapWaEstado(estadoCoco: string | null, error: string | null): string {
-  if (error && error.trim() && error.trim() !== '-') return 'fallido'
-  const e = (estadoCoco ?? '').trim()
-  if (!e || e === '-') return 'no_respondio'
-  if (e.toLowerCase().includes('complet')) return 'respondio'
-  return 'no_respondio'
+// ── Mapas de homologación: texto COCO → código canónico ───────────────────────
+
+const MOTIVO_RETIRO_MAP: Record<string, string> = {
+  'Ya no deseo la atención':            'ya_no_deseo_la_atencion',
+  'Acudí a otro centro de la CCSS':     'acudi_ccss',
+  'Acudí a otro centro médico privado': 'acudi_privado',
+  'Ya no necesito la atención':         'ya_no_necesito',
+  'Contraindicación médica':            'contraindicacion_medica',
+  'Fallecimiento':                      'fallecimiento',
 }
 
-function mapEstadoFinal(desea: string | null): string | null {
-  const d = (desea ?? '').toLowerCase()
-  if (!d || d === '-') return null
-  if (d.includes('sí') || d.includes('si') || d.includes('puede asistir')) return 'ACTIVO'
-  if (d.includes('no')) return 'DEPURADO_RENUNCIA'
-  return 'ACTIVO'
+const MOTIVO_NO_ASISTIR_MAP: Record<string, string> = {
+  'Problemas de salud':                           'problemas_salud',
+  'Hospitalización o recuperación médica':        'hospitalizacion',
+  'Falta de transporte o traslado':               'falta_transporte',
+  'Falta de acompañante o situación familiar':    'falta_acompanante',
+  'Obligaciones laborales, académicas o legales': 'obligaciones',
+  'Problemas económicos':                         'problemas_economicos',
+  'Fuera del país o de la zona':                  'fuera_pais',
+  'Decisión personal':                            'decision_personal',
+  'Otro motivo':                                  'otro_motivo',
 }
+
+const MEDIO_CONTACTO_MAP: Record<string, string> = {
+  'Llamada telefónica':     'llamada',
+  'WhatsApp':               'whatsapp',
+  'Correo electrónico':     'correo',
+  'SMS':                    'sms',
+  'Cualquiera de opciones': 'cualquiera',
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function clean(val: unknown): string | null {
   const v = String(val ?? '').trim()
   return (!v || v === '-') ? null : v
+}
+
+function mapLookup(map: Record<string, string>, val: string | null): string | null {
+  if (!val) return null
+  return map[val] ?? val  // fallback al valor original si no está en el mapa
 }
 
 function parseHourSent(val: unknown): string | null {
@@ -45,6 +67,147 @@ function parseHourSent(val: unknown): string | null {
     const d = new Date(String(val))
     return isNaN(d.getTime()) ? null : d.toISOString()
   } catch { return null }
+}
+
+// ── Clasificación por precedencia según flujo del desarrollador ───────────────
+
+type Clasificacion = {
+  estadoFinal:   string | null   // código canónico para respuestas.estado_final
+  estadoRegistro: string | null  // para actualizar registros.estado (solo ACTIVO y DEPURADO_RENUNCIA)
+  waEstado:      'respondio' | 'no_respondio' | 'fallido'
+  hasInteraction: boolean
+  pasoAbandono:  number | null
+}
+
+function clasificar(row: Record<string, unknown>): Clasificacion {
+  const errorCoco  = clean(row['error'])
+  const cons       = clean(row['Consentimiento informado'])
+  const ver        = clean(row['Verificación de identidad'])
+  const datos      = clean(row['Datos del caso'])
+  const desea      = clean(row['¿Desea continuar con esta atención pendiente?'])
+  const retiro     = clean(row['Motivo de retiro de lista de espera'])
+  const incorrectos = clean(row['Datos incorrectos reportados por el paciente'])
+  const estadoCoco = clean(row['Estado final'])
+
+  if (errorCoco) {
+    return { estadoFinal: null, estadoRegistro: null, waEstado: 'fallido', hasInteraction: false, pasoAbandono: null }
+  }
+
+  // Paso 1: rechazó consentimiento
+  if (cons === 'No autorizo') {
+    return { estadoFinal: 'NO_AUTORIZO', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 1 }
+  }
+
+  // Paso 2: falló verificación de identidad
+  if (ver && ver.includes('Agotó')) {
+    return { estadoFinal: 'NO_VERIFICADO', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 2 }
+  }
+
+  // Paso 3: información incorrecta (datos_incorrectos tiene texto)
+  if (incorrectos) {
+    return { estadoFinal: 'INFO_INCORRECTA', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 3 }
+  }
+
+  // Paso 4: se retiró de lista
+  if (retiro) {
+    return { estadoFinal: 'DEPURADO_RENUNCIA', estadoRegistro: 'DEPURADO_RENUNCIA', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 4 }
+  }
+
+  // Completó el flujo → ACTIVO
+  if (estadoCoco && estadoCoco.toLowerCase().includes('complet')) {
+    return { estadoFinal: 'ACTIVO', estadoRegistro: 'ACTIVO', waEstado: 'respondio', hasInteraction: true, pasoAbandono: null }
+  }
+
+  // Abandonos parciales: verificó pero no terminó
+  if (ver === 'Verificado correctamente') {
+    if (desea) {
+      // Dijo "Sí, deseo continuar" pero abandonó en paso 5 o 6
+      return { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 5 }
+    }
+    if (datos) {
+      // Confirmó datos pero no respondió paso 4
+      return { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 4 }
+    }
+    // Verificó pero abandonó antes del paso 3
+    return { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 3 }
+  }
+
+  // Sin interacción
+  return { estadoFinal: null, estadoRegistro: null, waEstado: 'no_respondio', hasInteraction: false, pasoAbandono: null }
+}
+
+// ── Normalización de campos a códigos canónicos ───────────────────────────────
+
+function normalizarRespuesta(row: Record<string, unknown>, clasificacion: Clasificacion) {
+  const ver        = clean(row['Verificación de identidad'])
+  const datos      = clean(row['Datos del caso'])
+  const desea      = clean(row['¿Desea continuar con esta atención pendiente?'])
+  const retiro     = clean(row['Motivo de retiro de lista de espera'])
+  const incorrectos = clean(row['Datos incorrectos reportados por el paciente'])
+  const flex       = clean(row['Flexibilidad de centro médico'])
+  const cond       = clean(row['Condiciones para asistir'])
+  const motivoNo   = clean(row['Motivo de no asistencia'])
+  const medio      = clean(row['Medio de contacto preferido'])
+
+  const { estadoFinal, pasoAbandono, hasInteraction } = clasificacion
+
+  // paso_1: si llegaron al paso 2+ autorizaron implícitamente
+  const paso1 = estadoFinal === 'NO_AUTORIZO'
+    ? 'no_autorizo'
+    : hasInteraction && estadoFinal !== 'NO_AUTORIZO' && ver !== null
+      ? 'si_autorizo'
+      : null
+
+  // paso_2
+  const paso2 = ver === 'Verificado correctamente'
+    ? 'exitosa'
+    : ver && ver.includes('Agotó')
+      ? 'fallida'
+      : null
+
+  // paso_3
+  const paso3 = datos === 'La información es correcta'
+    ? 'si'
+    : incorrectos
+      ? 'no'
+      : null
+
+  // paso_4
+  const paso4 = desea && (desea.includes('Sí') || desea.includes('Si'))
+    ? 'si'
+    : retiro
+      ? 'no_ya_no_deseo'
+      : null
+
+  // paso_5a
+  const paso5a = flex && flex.includes('dispuesto')
+    ? 'si'
+    : flex && flex.includes('disponible')
+      ? 'no'
+      : null
+
+  // paso_5b
+  const paso5b = cond && cond.includes('asistir')
+    ? 'si'
+    : motivoNo
+      ? 'no'
+      : null
+
+  return {
+    paso_1_consentimiento:       paso1,
+    paso_2_verificacion:         paso2,
+    paso_3_info_correcta:        paso3,
+    paso_3_error:                incorrectos,
+    paso_4_desea_continuar:      paso4,
+    motivo_retiro:               mapLookup(MOTIVO_RETIRO_MAP, retiro),
+    paso_5a_flexibilidad_centro: paso5a,
+    paso_5b_condiciones_asistir: paso5b,
+    paso_5b_motivo_no_asistir:   mapLookup(MOTIVO_NO_ASISTIR_MAP, motivoNo),
+    paso_6_medio_contacto:       mapLookup(MEDIO_CONTACTO_MAP, medio),
+    estado_final:                estadoFinal,
+    completado:                  estadoFinal === 'ACTIVO',
+    paso_abandono:               pasoAbandono,
+  }
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -68,7 +231,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Campaña WA no configurada para: ${campanaId}` }, { status: 400 })
   }
 
-  // Leer archivo del form
   let fileBuffer: Buffer
   try {
     const formData = await request.formData()
@@ -79,7 +241,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error leyendo el archivo' }, { status: 400 })
   }
 
-  // Parsear Excel
   let rows: Record<string, unknown>[]
   try {
     const wb = XLSX.read(fileBuffer, { type: 'buffer' })
@@ -94,7 +255,7 @@ export async function POST(request: NextRequest) {
 
   const sb = createClient()
 
-  // Construir mapa cédula → registros (array para manejar cédulas duplicadas)
+  // Construir mapa cédula → registros (maneja cédulas duplicadas)
   type RegInfo = { id_registro: string; especialidad: string | null; encuesta_completada_at: string | null }
   const cedulaMap = new Map<string, RegInfo[]>()
   let from = 0
@@ -111,8 +272,8 @@ export async function POST(request: NextRequest) {
       if (!r.cedula_raw) continue
       const c = String(r.cedula_raw).trim()
       const entry: RegInfo = {
-        id_registro:           r.id_registro as string,
-        especialidad:          r.especialidad as string | null,
+        id_registro:            r.id_registro as string,
+        especialidad:           r.especialidad as string | null,
         encuesta_completada_at: r.encuesta_completada_at as string | null,
       }
       const arr = cedulaMap.get(c)
@@ -123,72 +284,74 @@ export async function POST(request: NextRequest) {
     from += 1000
   }
 
-  // Procesar filas — match por cédula+especialidad, fallback a todos si ambiguo
-  let matched = 0, noMatch = 0, respondio = 0, noRespondio = 0, fallido = 0, errores = 0
+  let matched = 0, noMatch = 0, errores = 0
+  let cntActivo = 0, cntDepurado = 0, cntNoAutorizo = 0, cntNoVerificado = 0
+  let cntInfoIncorrecta = 0, cntAbandono = 0, cntNoRespondio = 0, cntFallido = 0
+
   const updatesRegistros: Array<Record<string, unknown>> = []
   const upsertRespuestas: Array<Record<string, unknown>> = []
 
   for (const row of rows) {
-    const cedula  = clean(row['id'] ?? row['N° Identificación'] ?? '')
+    const cedula = clean(row['id'] ?? row['N° Identificación'] ?? '')
     if (!cedula) { noMatch++; continue }
 
     const allRegs = cedulaMap.get(cedula) ?? []
     if (allRegs.length === 0) { noMatch++; continue }
 
+    // Match por especialidad si está disponible, fallback a todos
     const cocoEsp = String(row['Especialidad'] ?? '').trim()
-    let matchingRegs: RegInfo[]
-    if (!cocoEsp) {
-      matchingRegs = allRegs
-    } else {
-      const byEsp = allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp)
-      matchingRegs = byEsp.length > 0 ? byEsp : allRegs
-    }
+    const matchingRegs = cocoEsp
+      ? (allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp).length > 0
+          ? allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp)
+          : allRegs)
+      : allRegs
 
     matched += matchingRegs.length
 
-    const estadoCoco = clean(row['Estado final'])
-    const errorCoco  = clean(row['error'])
-    const waEstado   = mapWaEstado(estadoCoco, errorCoco)
-    const hourSent   = parseHourSent(row['hour_sent'])
+    const clasificacion = clasificar(row)
+    const hourSent      = parseHourSent(row['hour_sent'])
 
-    if (waEstado === 'respondio') respondio++
-    else if (waEstado === 'fallido') fallido++
-    else noRespondio++
+    // Contadores
+    if      (clasificacion.estadoFinal === 'ACTIVO')            cntActivo++
+    else if (clasificacion.estadoFinal === 'DEPURADO_RENUNCIA') cntDepurado++
+    else if (clasificacion.estadoFinal === 'NO_AUTORIZO')       cntNoAutorizo++
+    else if (clasificacion.estadoFinal === 'NO_VERIFICADO')     cntNoVerificado++
+    else if (clasificacion.estadoFinal === 'INFO_INCORRECTA')   cntInfoIncorrecta++
+    else if (clasificacion.hasInteraction)                      cntAbandono++
+    else if (clasificacion.waEstado === 'fallido')              cntFallido++
+    else                                                        cntNoRespondio++
 
     for (const reg of matchingRegs) {
       const yaCompletoPorCorreo = !!reg.encuesta_completada_at
 
+      // ── Actualizar registros ─────────────────────────────────────────────
       const updReg: Record<string, unknown> = {
         id_registro:         reg.id_registro,
-        _wa_estado:          waEstado,
+        _wa_estado:          clasificacion.waEstado,
         whatsapp_enviado_at: hourSent,
-        whatsapp_estado:     waEstado,
-        whatsapp_error:      errorCoco,
+        whatsapp_estado:     clasificacion.waEstado,
+        whatsapp_error:      clean(row['error']),
       }
-      if (waEstado === 'respondio') {
+
+      if (clasificacion.hasInteraction && hourSent) {
         updReg.whatsapp_respondio_at = hourSent
-        // No sobreescribir completada_at si ya la tiene (respuesta por correo)
-        if (!yaCompletoPorCorreo && hourSent) {
-          updReg.encuesta_completada_at = hourSent
-        }
       }
+      if (clasificacion.estadoFinal === 'ACTIVO' && !yaCompletoPorCorreo && hourSent) {
+        updReg.encuesta_completada_at = hourSent
+      }
+      if (clasificacion.estadoRegistro) {
+        updReg.estado = clasificacion.estadoRegistro
+      }
+
       updatesRegistros.push(updReg)
 
-      if (waEstado === 'respondio') {
+      // ── Crear respuesta para todos los que interactuaron ─────────────────
+      if (clasificacion.hasInteraction) {
+        const campos = normalizarRespuesta(row, clasificacion)
         upsertRespuestas.push({
-          id_registro:                 reg.id_registro,
-          canal:                       'whatsapp',
-          paso_1_consentimiento:       clean(row['Consentimiento informado']),
-          paso_2_verificacion:         clean(row['Verificación de identidad']),
-          paso_3_info_correcta:        clean(row['Datos del caso']),
-          paso_4_desea_continuar:      clean(row['¿Desea continuar con esta atención pendiente?']),
-          motivo_retiro:               clean(row['Motivo de retiro de lista de espera']),
-          paso_5a_flexibilidad_centro: clean(row['Flexibilidad de centro médico']),
-          paso_5b_condiciones_asistir: clean(row['Condiciones para asistir']),
-          paso_5b_motivo_no_asistir:   clean(row['Motivo de no asistencia']),
-          paso_6_medio_contacto:       clean(row['Medio de contacto preferido']),
-          estado_final:                mapEstadoFinal(clean(row['¿Desea continuar con esta atención pendiente?'])),
-          completado:                  true,
+          id_registro: reg.id_registro,
+          canal:       'whatsapp',
+          ...campos,
         })
       }
     }
@@ -197,11 +360,11 @@ export async function POST(request: NextRequest) {
   if (matched === 0) {
     return NextResponse.json({
       error: 'Ningún registro matchó — verifique que la campaña seleccionada es correcta',
-      matched: 0, noMatch, respondio: 0, noRespondio: 0, fallido: 0,
+      matched: 0, noMatch,
     }, { status: 422 })
   }
 
-  // Actualizar registros
+  // ── Aplicar actualizaciones a registros ───────────────────────────────────
   const BATCH = 100
   for (let i = 0; i < updatesRegistros.length; i += BATCH) {
     const batch = updatesRegistros.slice(i, i + BATCH)
@@ -212,7 +375,7 @@ export async function POST(request: NextRequest) {
       )
       if (Object.keys(camposLimpios).length === 0) continue
       let query = sb.from('registros').update(camposLimpios).eq('id_registro', id_registro as string)
-      // Nunca degradar un respondio → no_respondio / fallido si alguien sube un archivo viejo
+      // No degradar: si ya está en 'respondio', no sobreescribir con 'no_respondio'
       if (_wa_estado !== 'respondio') query = query.neq('whatsapp_estado', 'respondio')
       const { error } = await query
       if (error) errores++
@@ -220,14 +383,30 @@ export async function POST(request: NextRequest) {
     await sleep(150)
   }
 
-  // Upsert respuestas
+  // ── Upsert respuestas (todos los que interactuaron) ───────────────────────
   for (let i = 0; i < upsertRespuestas.length; i += BATCH) {
     const batch = upsertRespuestas.slice(i, i + BATCH)
-    const { error } = await sb.from('respuestas')
+    const { error } = await sb
+      .from('respuestas')
       .upsert(batch, { onConflict: 'id_registro, canal', ignoreDuplicates: false })
     if (error) errores += batch.length
     await sleep(150)
   }
 
-  return NextResponse.json({ matched, noMatch, respondio, noRespondio, fallido, errores })
+  return NextResponse.json({
+    matched,
+    noMatch,
+    errores,
+    interactuaron: upsertRespuestas.length,
+    detalle: {
+      activo:          cntActivo,
+      depurado:        cntDepurado,
+      no_autorizo:     cntNoAutorizo,
+      no_verificado:   cntNoVerificado,
+      info_incorrecta: cntInfoIncorrecta,
+      abandono:        cntAbandono,
+      no_respondio:    cntNoRespondio,
+      fallido:         cntFallido,
+    },
+  })
 }

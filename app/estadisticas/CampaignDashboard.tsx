@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { CampanaInfo, EstadoRow, EficienciaData, EspecialidadRow, DispositivoData, FormSteps, ProximaFaseData, WaData } from './page'
 
 // ── Colores (idénticos al artifact) ────────────────────────────────────────────
@@ -173,75 +173,6 @@ function WaExportButton({ campanaId, waElegibles }: { campanaId: string; waElegi
   )
 }
 
-function WaImportButton({ campanaId }: { campanaId: string }) {
-  const [estado, setEstado] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
-  const [msg, setMsg]       = useState('')
-  const [archivo, setArchivo] = useState<File | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  async function handleUpload() {
-    if (!archivo || estado === 'loading') return
-    setEstado('loading')
-    setMsg('')
-    try {
-      const form = new FormData()
-      form.append('file', archivo)
-      const res = await fetch(`/api/admin/wa-import-coco?campana=${encodeURIComponent(campanaId)}`, {
-        method: 'POST',
-        body: form,
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
-      setEstado('ok')
-      const { matched, respondio, noRespondio, fallido } = data
-      setMsg(`✅ ${matched} procesados · ${respondio} respondieron · ${noRespondio} no respondieron · ${fallido} fallidos`)
-    } catch (e: unknown) {
-      setEstado('error')
-      setMsg(`❌ ${e instanceof Error ? e.message : 'Error desconocido'}`)
-    }
-  }
-
-  return (
-    <div style={{ marginBottom:18, padding:'16px 20px', borderRadius:10, border:`2px solid ${C.blue}`, background:C.blueLt, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".xlsx"
-        style={{ display:'none' }}
-        onChange={e => { setArchivo(e.target.files?.[0] ?? null); setEstado('idle'); setMsg('') }}
-      />
-      <div style={{ flex:1, minWidth:200 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:C.blue, marginBottom:3 }}>📥 Subir resultados COCO — WhatsApp</div>
-        <div style={{ fontSize:11, color:C.gray }}>
-          {archivo
-            ? <><strong>{archivo.name}</strong> seleccionado</>
-            : 'Seleccione el Excel de resultados que devolvió COCO para importarlo a la BD.'}
-        </div>
-        {msg && <div style={{ fontSize:11, marginTop:6, color: estado === 'ok' ? C.green : C.red, fontWeight:600 }}>{msg}</div>}
-      </div>
-      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-        <button
-          onClick={() => inputRef.current?.click()}
-          style={{ padding:'10px 18px', borderRadius:8, border:`1.5px solid ${C.blue}`, cursor:'pointer', background:'#fff', color:C.blue, fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}
-        >
-          📂 Elegir archivo
-        </button>
-        <button
-          onClick={handleUpload}
-          disabled={!archivo || estado === 'loading'}
-          style={{
-            padding:'10px 22px', borderRadius:8, border:'none', cursor: (!archivo || estado === 'loading') ? 'not-allowed' : 'pointer',
-            background: estado === 'ok' ? C.green : estado === 'error' ? C.red : C.blue,
-            color:'#fff', fontSize:13, fontWeight:700,
-            opacity: (!archivo || estado === 'loading') ? 0.5 : 1, whiteSpace:'nowrap',
-          }}
-        >
-          {estado === 'loading' ? '⏳ Importando...' : estado === 'ok' ? '✅ Importado' : '⬆️ Importar a BD'}
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface Props {
@@ -282,7 +213,7 @@ function mergeWa(all: WaData[]): WaData {
   }), { ...EMPTY_WA })
 }
 
-type Tab = 'global' | 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'siguiente' | 'whatsapp'
+type Tab = 'global' | 'resumen' | 'eficiencia' | 'especialidades' | 'tecnologia' | 'formulario' | 'whatsapp'
 const TABS: { id: Tab; label: string }[] = [
   { id:'global',        label:'🌐 Resumen General'      },
   { id:'resumen',       label:'📊 Esta Campaña'         },
@@ -290,7 +221,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id:'especialidades',label:'🏥 Especialidades'       },
   { id:'tecnologia',    label:'📱 Tecnología'           },
   { id:'formulario',    label:'📋 Respuestas'           },
-  { id:'siguiente',     label:'💬 Próxima fase'         },
   { id:'whatsapp',      label:'📲 WhatsApp'             },
 ]
 
@@ -318,6 +248,16 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
   const campanasFiltradas = tipoFiltro === 'Todos'
     ? campanas
     : campanas.filter(cc => getTipo(cc.id) === tipoFiltro)
+
+  // Tabs visibles: en modo Todos → solo Resumen General; en modo campaña → todo menos global
+  const visibleTabs = tipoFiltro === 'Todos'
+    ? TABS.filter(t => t.id === 'global')
+    : TABS.filter(t => t.id !== 'global')
+
+  // Reset tab al cambiar modo
+  useEffect(() => {
+    setTab(tipoFiltro === 'Todos' ? 'global' : 'resumen')
+  }, [tipoFiltro])
 
   const refresh = useCallback(() => { router.refresh(); setCd(REFRESH_SECS) }, [router])
   useEffect(() => {
@@ -370,15 +310,22 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
           <div>
             <div style={{ fontSize:10, color:'#89B8DC', letterSpacing:2, textTransform:'uppercase' }}>CCSS · Unidad Técnica de Listas de Espera</div>
-            <div style={{ fontSize:17, fontWeight:700, color:'#fff', marginTop:2 }}>CLEO · Dashboard {getTipo(campanaActual) !== 'Todos' ? getTipo(campanaActual) : campanaActual.replace('ENCUESTA-', '').replace(/_\d+$/, '')}</div>
+            <div style={{ fontSize:17, fontWeight:700, color:'#fff', marginTop:2 }}>
+              CLEO · {tipoFiltro === 'Todos' ? 'Resumen Global' : `Dashboard ${tipoFiltro} — ${campanaActual.replace('ENCUESTA-', '').replace(/_\d+$/, '')}`}
+            </div>
           </div>
           <div style={{ textAlign:'right' }}>
-            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', flexWrap:'wrap' }}>
-              <span style={{ fontSize:11, background:'rgba(255,255,255,.15)', color:'#fff', padding:'3px 10px', borderRadius:20 }}>{campanaActual}</span>
-            </div>
+            {tipoFiltro !== 'Todos' && (
+              <div style={{ display:'flex', gap:8, justifyContent:'flex-end', flexWrap:'wrap' }}>
+                <span style={{ fontSize:11, background:'rgba(255,255,255,.15)', color:'#fff', padding:'3px 10px', borderRadius:20 }}>{campanaActual}</span>
+              </div>
+            )}
             <div style={{ fontSize:11, color:'#89B8DC', marginTop:6 }}>
               <span style={{ display:'inline-block', width:6, height:6, background:'#22C55E', borderRadius:'50%', marginRight:4, verticalAlign:'middle', animation:'pulse 2s infinite' }} />
-              {fmtDate(c.fecha_inicio)} · {fmt(c.completado)} completaron · {c.accedieron > 0 ? pct(c.completado, c.enviado) : '0%'} conversión
+              {tipoFiltro === 'Todos'
+                ? `${campanas.length} campañas · ${fmt(globalTotals.completado)} completaron · ${pct(globalTotals.completado, globalTotals.enviado)} tasa global`
+                : `${fmtDate(c.fecha_inicio)} · ${fmt(c.completado)} completaron · ${c.accedieron > 0 ? pct(c.completado, c.enviado) : '0%'} conversión`
+              }
             </div>
           </div>
         </div>
@@ -387,30 +334,40 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap', alignItems:'center' }}>
           {TIPOS.map(t => (
             <button key={t} onClick={() => {
-              const filtered = t === 'Todos' ? campanas : campanas.filter(cc => getTipo(cc.id) === t)
+              if (t === 'Todos') {
+                router.push(`/estadisticas?tipo=Todos`)
+                setTab('global')
+                return
+              }
+              const filtered = campanas.filter(cc => getTipo(cc.id) === t)
               const targetCampana = filtered.find(cc => cc.id === campanaActual)
                 ? campanaActual
                 : (filtered[0]?.id ?? campanaActual)
               router.push(`/estadisticas?campana=${encodeURIComponent(targetCampana)}&tipo=${encodeURIComponent(t)}`)
+              setTab('resumen')
             }} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, cursor:'pointer', border:'1px solid rgba(255,255,255,.35)',
               background: tipoFiltro === t ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.08)',
               color: tipoFiltro === t ? '#fff' : '#89B8DC', fontWeight: tipoFiltro === t ? 700 : 400 }}>
               {t}
             </button>
           ))}
-          <div style={{ width:1, height:18, background:'rgba(255,255,255,.2)', margin:'0 2px' }} />
-          {campanasFiltradas.length === 0 ? (
-            <span style={{ fontSize:11, color:'#fbbf24', fontStyle:'italic', padding:'4px 10px', border:'1px solid rgba(251,191,36,.4)', borderRadius:6, background:'rgba(251,191,36,.08)' }}>
-              Sin campañas de {tipoFiltro} aún
-            </span>
-          ) : (
-            <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)}
-              style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
-              {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
-            </select>
+          {tipoFiltro !== 'Todos' && (
+            <>
+              <div style={{ width:1, height:18, background:'rgba(255,255,255,.2)', margin:'0 2px' }} />
+              {campanasFiltradas.length === 0 ? (
+                <span style={{ fontSize:11, color:'#fbbf24', fontStyle:'italic', padding:'4px 10px', border:'1px solid rgba(251,191,36,.4)', borderRadius:6, background:'rgba(251,191,36,.08)' }}>
+                  Sin campañas de {tipoFiltro} aún
+                </span>
+              ) : (
+                <select value={campanaActual} onChange={e => router.push(`/estadisticas?campana=${encodeURIComponent(e.target.value)}&tipo=${encodeURIComponent(tipoFiltro)}`)}
+                  style={{ fontSize:12, border:'1px solid rgba(255,255,255,.3)', borderRadius:6, padding:'4px 10px', background:'rgba(255,255,255,.1)', color:'#fff' }}>
+                  {campanasFiltradas.map(cc => <option key={cc.id} value={cc.id} style={{ color:C.text }}>{cc.id}</option>)}
+                </select>
+              )}
+              <button onClick={() => handleExport('registros')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Registros Excel</button>
+              <button onClick={() => handleExport('respuestas')} disabled={exp} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color:'#fff', cursor:'pointer' }}>↓ Respuestas Excel</button>
+            </>
           )}
-          <button onClick={() => handleExport('registros')} disabled={exp || campanasFiltradas.length === 0} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color: campanasFiltradas.length === 0 ? 'rgba(255,255,255,.3)' : '#fff', cursor: campanasFiltradas.length === 0 ? 'not-allowed' : 'pointer' }}>↓ Registros Excel</button>
-          <button onClick={() => handleExport('respuestas')} disabled={exp || campanasFiltradas.length === 0} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.1)', color: campanasFiltradas.length === 0 ? 'rgba(255,255,255,.3)' : '#fff', cursor: campanasFiltradas.length === 0 ? 'not-allowed' : 'pointer' }}>↓ Respuestas Excel</button>
           <span style={{ fontSize:11, color:'#89B8DC', marginLeft:'auto' }}>
             Actualiza en {cd}s &nbsp;
             <button onClick={refresh} style={{ fontSize:11, color:'#89B8DC', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Ahora</button>
@@ -421,7 +378,7 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
 
       {/* TABS */}
       <div style={{ display:'flex', background:'#fff', borderBottom:`2px solid ${C.border}`, marginLeft:-24, marginRight:-24, paddingLeft:24, overflowX:'auto' }}>
-        {TABS.filter(t => t.id !== 'whatsapp' || waData.enviados > 0).map(t => (
+        {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             fontSize:12, fontWeight:600, padding:'13px 16px', cursor:'pointer', border:'none', background:'none', borderBottom:`2px solid ${tab===t.id ? C.blue : 'transparent'}`,
             color: tab===t.id ? C.blue : C.gray, marginBottom:-2, whiteSpace:'nowrap', transition:'color .15s'
@@ -443,13 +400,20 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
         {/* ══ RESUMEN GLOBAL ══ */}
         {tab === 'global' && (
           <div>
-            {/* KPIs globales — respetan el filtro activo */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-              <KPI lbl={tipoFiltro === 'Todos' ? 'Campañas activas' : `Campañas ${tipoFiltro}`} val={String(campanasFiltradas.length)} sub={tipoFiltro === 'Todos' ? 'Correo + WA en ejecución' : `de ${campanas.length} totales`} col={C.blue}  />
-              <KPI lbl="Correos enviados"          val={fmt(globalTotals.enviado)}                            sub={tipoFiltro === 'Todos' ? 'Suma de todas las campañas' : `Solo campañas ${tipoFiltro}`} col={C.blue}  />
-              <KPI lbl="Completaron encuesta"      val={fmt(globalTotals.completado)}                         sub={`${pct(globalTotals.completado, globalTotals.enviado)} tasa`}     col={C.green} />
-              <KPI lbl="Pendientes"                val={fmt(globalTotals.enviado - globalTotals.completado)}  sub="Sin responder en ningún canal"                                     col={C.gray}  />
-            </div>
+            {/* KPIs globales — correo / WA / pendientes */}
+            {(() => {
+              const gWaCompletados = gWa.activo + gWa.depurado_renuncia
+              const gCorreoCompletados = Math.max(0, globalTotals.completado - gWaCompletados)
+              const gPendientes = globalTotals.enviado - globalTotals.completado
+              return (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
+                  <KPI lbl="Correos enviados" val={fmt(globalTotals.enviado)} sub={`${campanasFiltradas.length} campaña${campanasFiltradas.length !== 1 ? 's' : ''} activas`} col={C.blue} />
+                  <KPI lbl="Respondieron por correo" val={fmt(gCorreoCompletados)} sub={`${pct(gCorreoCompletados, globalTotals.enviado)} del total enviado`} col={C.green} />
+                  <KPI lbl="Respondieron por WhatsApp" val={fmt(gWaCompletados)} sub={`${pct(gWaCompletados, globalTotals.enviado)} del total enviado`} col={C.wa} />
+                  <KPI lbl="Sin respuesta" val={fmt(gPendientes)} sub={`${pct(gPendientes, globalTotals.enviado)} pasan a siguiente canal`} col={C.gray} />
+                </div>
+              )
+            })()}
 
             {/* Estados globales + WA global */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
@@ -870,66 +834,13 @@ export default function CampaignDashboard({ campanas, campanaActual, campanaInfo
           </div>
         )}
 
-        {/* ══ PRÓXIMA FASE ══ */}
-        {tab === 'siguiente' && (
-          <div>
-            {/* Botón WA Export — solo visible para usuarios autorizados */}
-            {canExportWA && (
-              <WaExportButton campanaId={campanaActual} waElegibles={proximaFase.wa_elegibles} />
-            )}
-            {canExportWA && (
-              <WaImportButton campanaId={campanaActual} />
-            )}
-
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:18 }}>
-              <div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, marginBottom:12, border:`1px solid ${C.blueMd}`, background:C.blueLt }}>
-                  <div><div style={{ fontSize:12, fontWeight:600, color:C.blue }}>💬 Elegibles para WhatsApp</div><div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Tienen teléfono · pasarán si no responden correo</div></div>
-                  <div style={{ fontSize:22, fontWeight:800, color:C.blue }}>{fmt(proximaFase.wa_elegibles)}</div>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, marginBottom:12, border:`1px solid ${C.border}`, background:'#F8FAFC' }}>
-                  <div><div style={{ fontSize:12, fontWeight:600 }}>Sin WhatsApp registrado</div><div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Solo correo + voicebot</div></div>
-                  <div style={{ fontSize:22, fontWeight:800, color:C.gray }}>{fmt(proximaFase.sin_wa)}</div>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderRadius:8, border:`1px solid #A7F3D0`, background:C.greenLt }}>
-                  <div><div style={{ fontSize:12, fontWeight:600, color:C.green }}>✅ Ya respondieron — no pasan a WA</div><div style={{ fontSize:11, color:C.gray, marginTop:2 }}>Depurados del ciclo</div></div>
-                  <div style={{ fontSize:22, fontWeight:800, color:C.green }}>{fmt(proximaFase.ya_respondieron)}</div>
-                </div>
-              </div>
-
-              <div style={CARD}>
-                <div style={SEC}>Proyección cascada (estimada)</div>
-                <FunnelRow lbl="📭 No responden correo (~65%)" val={Math.round((c.enviado - c.completado) * 0.65)} total={c.enviado} color={C.blueMd} />
-                <FunnelRow lbl="💬 Pasarán a WhatsApp" val={proximaFase.wa_elegibles} total={c.enviado} color={C.wa} />
-                <FunnelRow lbl="📞 No responden WA (~70%)" val={Math.round(proximaFase.wa_elegibles * 0.70)} total={c.enviado} color='#E2E8F0' />
-                <FunnelRow lbl="📞 Pasarán a Voicebot" val={Math.round(proximaFase.wa_elegibles * 0.70)} total={c.enviado} color={C.purple} />
-                <div style={{ marginTop:12, fontSize:10, color:C.gray, fontStyle:'italic' }}>Los {fmt(c.completado)} que ya respondieron quedan fuera del ciclo WA/Voicebot.</div>
-              </div>
-            </div>
-
-            <div style={CARD}>
-              <div style={SEC}>Línea de tiempo — campaña {campanaActual}</div>
-              <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
-                {[
-                  { date:`${fmtDate(c.fecha_inicio)}`, title:'📧 Correo', sub:`${fmt(c.enviado)} enviados · en curso`, active:true },
-                  { date:'+3 días', title:'💬 WhatsApp', sub:`~${fmt(Math.round(proximaFase.wa_elegibles))} elegibles`, active:false },
-                  { date:'~+7 días', title:'📞 Voicebot', sub:`~${fmt(Math.round(proximaFase.wa_elegibles * 0.70))} sin responder WA`, active:false },
-                  { date:'~+12 días', title:'✅ Cierre campaña', sub:'Análisis + escala completa', active:false },
-                ].map((item, i) => (
-                  <div key={i} style={{ flex:1, minWidth:120, padding:'12px 14px', borderRight:`1px solid ${C.border}`, background: item.active ? C.blueLt : 'transparent' }}>
-                    <div style={{ fontSize:10, color:C.gray, marginBottom:3 }}>{item.date}</div>
-                    <div style={{ fontSize:12, fontWeight:700, color: item.active ? C.blue : C.text }}>{item.title}</div>
-                    <div style={{ fontSize:10, color:C.gray, marginTop:2 }}>{item.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* ══ WHATSAPP ══ */}
         {tab === 'whatsapp' && (
           <div>
+            {/* Botón export COCO — solo para usuarios autorizados */}
+            {canExportWA && (
+              <WaExportButton campanaId={campanaActual} waElegibles={proximaFase.wa_elegibles} />
+            )}
             {waData.enviados === 0 ? (
               <div style={{ ...CARD, textAlign:'center', padding:40, color:C.gray }}>
                 <div style={{ fontSize:32, marginBottom:12 }}>💬</div>
