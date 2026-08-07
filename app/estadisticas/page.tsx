@@ -176,16 +176,24 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
   }
 }
 
-const WA_CAMPANA_MAP: Record<string, string> = {
-  'ENCUESTA-CIRUGIA-01_1500': 'WA-CIRUGIA-01',
-  'ENCUESTA-CIRUGIA-02':      'WA-CIRUGIA-02',
-  'ENCUESTA-CE-01':           'WA-CE-01',
-  'ENCUESTA-PROC-01':         'WA-PROC-01',
-  'ENCUESTA-PROC-02':         'WA-PROC-02',
+// Deriva el mapa encuesta→WA directamente desde la BD (sin datos quemados en código)
+async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds: string[]): Promise<Record<string, string>> {
+  const pairs = await Promise.all(
+    campanaIds.map(async (enc) => {
+      const { data } = await sb
+        .from('registros')
+        .select('whatsapp_campana_id')
+        .eq('encuesta_campana_id', enc)
+        .not('whatsapp_campana_id', 'is', null)
+        .limit(1)
+      const waId = (data?.[0] as Record<string, unknown> | undefined)?.whatsapp_campana_id as string | null
+      return [enc, waId] as [string, string | null]
+    })
+  )
+  return Object.fromEntries(pairs.filter(([, v]) => v !== null)) as Record<string, string>
 }
 
-async function getWaData(sb: ReturnType<typeof createClient>, campanaId: string): Promise<WaData> {
-  const waCampanaId = WA_CAMPANA_MAP[campanaId]
+async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: string | null): Promise<WaData> {
   if (!waCampanaId) return { enviados: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
 
   const q = () => sb.from('registros').eq('whatsapp_campana_id', waCampanaId)
@@ -231,8 +239,8 @@ async function getEstadosPorCampana(sb: ReturnType<typeof createClient>, campana
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
-async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[]): Promise<Record<string, WaData>> {
-  const results = await Promise.all(campanas.map(c => getWaData(sb, c.id)))
+async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[], waMap: Record<string, string>): Promise<Record<string, WaData>> {
+  const results = await Promise.all(campanas.map(c => getWaData(sb, waMap[c.id] ?? null)))
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
@@ -273,6 +281,8 @@ export default async function EstadisticasPage({ searchParams }: Props) {
   const viewerUser = validateViewerSessionServer()
   const canExportWA = !!(viewerUser && WA_EXPORT_VIEWERS.includes(viewerUser))
 
+  const waMap = await getWaEncuestaMap(sb, campanas.map(c => c.id))
+
   const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
@@ -280,9 +290,9 @@ export default async function EstadisticasPage({ searchParams }: Props) {
     getDispositivos(sb, campanaActual),
     getFormSteps(sb, campanaActual),
     getProximaFase(sb, campanaActual, campanaInfo.completado),
-    getWaData(sb, campanaActual),
+    getWaData(sb, waMap[campanaActual] ?? null),
     getEstadosPorCampana(sb, campanas),
-    getWaPorCampana(sb, campanas),
+    getWaPorCampana(sb, campanas, waMap),
   ])
 
   return (

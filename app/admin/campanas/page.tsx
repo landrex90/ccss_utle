@@ -1,39 +1,30 @@
 import { createClient } from '@/lib/supabase/server'
 
-interface RegistroRow {
-  campana_id: string | null
-  estado: string | null
-}
-
 interface CampanaStats {
   campana_id: string
   total: number
   byEstado: Record<string, number>
 }
 
+// Usa RPC get_campanas_by_campana_id (migración 021) para agrupar en la BD
+// Evita traer 100k+ filas al cliente (límite Supabase JS = 1,000 filas)
 async function getCampanasData(): Promise<CampanaStats[]> {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('registros')
-    .select('campana_id, estado')
-    .order('campana_id', { ascending: false })
+  const { data, error } = await supabase.rpc('get_campanas_by_campana_id')
 
   if (error || !data) return []
 
   const map = new Map<string, CampanaStats>()
-
-  for (const row of data as RegistroRow[]) {
-    const key = row.campana_id ?? '(sin campaña)'
-    if (!map.has(key)) {
-      map.set(key, { campana_id: key, total: 0, byEstado: {} })
+  for (const row of data as { campana_id: string; estado: string; cnt: number }[]) {
+    if (!map.has(row.campana_id)) {
+      map.set(row.campana_id, { campana_id: row.campana_id, total: 0, byEstado: {} })
     }
-    const entry = map.get(key)!
-    entry.total++
-    const estado = row.estado ?? 'PENDIENTE'
-    entry.byEstado[estado] = (entry.byEstado[estado] ?? 0) + 1
+    const entry = map.get(row.campana_id)!
+    entry.total += Number(row.cnt)
+    entry.byEstado[row.estado] = Number(row.cnt)
   }
 
-  return Array.from(map.values())
+  return Array.from(map.values()).sort((a, b) => b.campana_id.localeCompare(a.campana_id))
 }
 
 const ESTADO_COLORS: Record<string, string> = {
