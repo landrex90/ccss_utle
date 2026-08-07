@@ -240,6 +240,13 @@ async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: Ca
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
+async function getLlamadasPendientes(sb: ReturnType<typeof createClient>): Promise<number> {
+  const { count } = await sb.from('registros')
+    .select('*', { count: 'exact', head: true })
+    .eq('llamada_estado', 'pendiente')
+  return count ?? 0
+}
+
 async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: string, completado: number): Promise<ProximaFaseData> {
   const { count: con_tel } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
@@ -277,7 +284,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
 
   const waMap = await getWaEncuestaMap(sb, campanas.map(c => c.id))
 
-  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana] = await Promise.all([
+  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
     getEspecialidades(sb, campanaActual),
@@ -287,6 +294,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
     getWaData(sb, waMap[campanaActual] ?? null),
     getEstadosPorCampana(sb, campanas),
     getWaPorCampana(sb, campanas, waMap),
+    getLlamadasPendientes(sb),
   ])
 
   return (
@@ -303,6 +311,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
       waData={waData}
       estadosPorCampana={estadosPorCampana}
       waPorCampana={waPorCampana}
+      llamadasPendientes={llamadasPendientes}
       canExportWA={canExportWA}
     />
   )

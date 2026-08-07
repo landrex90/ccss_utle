@@ -155,19 +155,20 @@ function WaExportButton({ campanaId, waElegibles }: { campanaId: string; waElegi
 }
 
 interface Props {
-  campanas:          CampanaInfo[]
-  campanaActual:     string
-  campanaInfo:       CampanaInfo
-  estados:           EstadoRow[]
-  eficiencia:        EficienciaData
-  especialidades:    EspecialidadRow[]
-  dispositivos:      DispositivoData
-  formSteps:         FormSteps
-  proximaFase:       ProximaFaseData
-  waData:            WaData
-  estadosPorCampana: Record<string, EstadoRow[]>
-  waPorCampana:      Record<string, WaData>
-  canExportWA?:      boolean
+  campanas:           CampanaInfo[]
+  campanaActual:      string
+  campanaInfo:        CampanaInfo
+  estados:            EstadoRow[]
+  eficiencia:         EficienciaData
+  especialidades:     EspecialidadRow[]
+  dispositivos:       DispositivoData
+  formSteps:          FormSteps
+  proximaFase:        ProximaFaseData
+  waData:             WaData
+  estadosPorCampana:  Record<string, EstadoRow[]>
+  waPorCampana:       Record<string, WaData>
+  llamadasPendientes: number
+  canExportWA?:       boolean
 }
 
 const EMPTY_WA: WaData = { enviados:0, respondio:0, no_respondio:0, entregados:0, leidos:0, activo:0, depurado_renuncia:0, no_autorizo:0, no_verificado:0 }
@@ -214,7 +215,7 @@ function getTipo(id: string): TipoFiltro {
   return 'Todos'
 }
 
-export default function CampaignDashboardV2({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, canExportWA }: Props) {
+export default function CampaignDashboardV2({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes, canExportWA }: Props) {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>((searchParams.get('tab') as Tab) ?? 'global')
@@ -492,15 +493,15 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
                   <span style={{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:C.gray }}>
                     Voicebot / Llamadas
                   </span>
-                  {gWa.no_respondio > 0 && (
-                    <span style={{ marginLeft:'auto', fontSize:22, fontWeight:800, color:C.gray, fontVariantNumeric:'tabular-nums' }}>
-                      {fmt(gWa.no_respondio)}
+                  {llamadasPendientes > 0 && (
+                    <span style={{ marginLeft:'auto', fontSize:22, fontWeight:800, color:C.blue, fontVariantNumeric:'tabular-nums' }}>
+                      {fmt(llamadasPendientes)}
                     </span>
                   )}
                 </div>
-                <div style={{ paddingLeft:24, borderLeft:`3px solid #E2E8F0`, fontSize:11, color:C.gray, fontStyle:'italic', paddingTop:2, paddingBottom:2 }}>
-                  {gWa.no_respondio > 0
-                    ? `${fmt(gWa.no_respondio)} candidatos listos · resultados pendientes de importar`
+                <div style={{ paddingLeft:24, borderLeft:`3px solid ${C.blueMd}`, fontSize:11, color:C.gray, fontStyle:'italic', paddingTop:2, paddingBottom:2 }}>
+                  {llamadasPendientes > 0
+                    ? `${fmt(llamadasPendientes)} en cola para llamada · resultados pendientes de importar`
                     : 'Candidatos pendientes de determinar (depende del canal WA)'}
                 </div>
               </div>
