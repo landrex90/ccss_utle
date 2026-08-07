@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
       especialidad: string | null
       centro_medico: string | null
       procedimiento: string | null
+      procedimiento_homologado: string | null
       tipo_consulta: string | null
       lateralidad: string | null
       tipo_atencion: string
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
     while (true) {
       const { data, error } = await sb
         .from('registros')
-        .select('id_registro, nombre_paciente, telefono, cedula_raw, nombre_servicio, especialidad, centro_medico, procedimiento, tipo_consulta, lateralidad, tipo_atencion, fecha_cita, hora_cita')
+        .select('id_registro, nombre_paciente, telefono, cedula_raw, nombre_servicio, especialidad, centro_medico, procedimiento, procedimiento_homologado, tipo_consulta, lateralidad, tipo_atencion, fecha_cita, hora_cita')
         .eq('encuesta_campana_id', campanaId)
         .is('encuesta_completada_at', null)
         .is('whatsapp_enviado_at', null)
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
         servicio:              r.nombre_servicio ?? '',
         especialidad:          r.especialidad ?? '',
         centro_medico:         r.centro_medico ?? '',
-        procedimiento:         r.procedimiento ?? r.nombre_servicio ?? '',
+        procedimiento:         r.procedimiento_homologado ?? r.procedimiento ?? r.nombre_servicio ?? '',
         lateralidad:           r.lateralidad ?? 'No aplica',
       }
       if (!isCirugia) {
