@@ -188,28 +188,41 @@ async function getWaData(sb: ReturnType<typeof createClient>, campanaId: string)
   const waCampanaId = WA_CAMPANA_MAP[campanaId]
   if (!waCampanaId) return { enviados: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
 
-  const { data } = await sb
-    .from('registros')
-    .select('whatsapp_estado, estado, whatsapp_entregado_at, whatsapp_leido_at')
-    .eq('whatsapp_campana_id', waCampanaId)
-
-  let enviados = 0, respondio = 0, no_respondio = 0, entregados = 0, leidos = 0
-  let activo = 0, depurado_renuncia = 0, no_autorizo = 0, no_verificado = 0
-  for (const r of ((data ?? []) as Record<string, unknown>[])) {
-    if (r.whatsapp_estado === 'sin_celular') continue
-    enviados++
-    if (r.whatsapp_estado === 'respondio') {
-      respondio++
-      if (r.estado === 'ACTIVO')              activo++
-      else if (r.estado === 'DEPURADO_RENUNCIA') depurado_renuncia++
-      else if (r.estado === 'NO_AUTORIZO')    no_autorizo++
-      else if (r.estado === 'NO_VERIFICADO')  no_verificado++
-    }
-    if (r.whatsapp_estado === 'no_respondio') no_respondio++
-    if (r.whatsapp_entregado_at)              entregados++
-    if (r.whatsapp_leido_at)                  leidos++
+  const q = () => sb.from('registros').eq('whatsapp_campana_id', waCampanaId)
+  const [
+    { count: total },
+    { count: sinCelular },
+    { count: respondioC },
+    { count: noRespondioC },
+    { count: entregadosC },
+    { count: leidosC },
+    { count: activoC },
+    { count: depuradoC },
+    { count: noAutorizoC },
+    { count: noVerifC },
+  ] = await Promise.all([
+    q().select('*', { count: 'exact', head: true }),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'sin_celular'),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio'),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'no_respondio'),
+    q().select('*', { count: 'exact', head: true }).not('whatsapp_entregado_at', 'is', null),
+    q().select('*', { count: 'exact', head: true }).not('whatsapp_leido_at', 'is', null),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'ACTIVO'),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'DEPURADO_RENUNCIA'),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'NO_AUTORIZO'),
+    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'NO_VERIFICADO'),
+  ])
+  return {
+    enviados:          (total ?? 0) - (sinCelular ?? 0),
+    respondio:         respondioC ?? 0,
+    no_respondio:      noRespondioC ?? 0,
+    entregados:        entregadosC ?? 0,
+    leidos:            leidosC ?? 0,
+    activo:            activoC ?? 0,
+    depurado_renuncia: depuradoC ?? 0,
+    no_autorizo:       noAutorizoC ?? 0,
+    no_verificado:     noVerifC ?? 0,
   }
-  return { enviados, respondio, no_respondio, entregados, leidos, activo, depurado_renuncia, no_autorizo, no_verificado }
 }
 
 // Fetch estados y WA por cada campaña individualmente para poder filtrar dinámicamente en el cliente
