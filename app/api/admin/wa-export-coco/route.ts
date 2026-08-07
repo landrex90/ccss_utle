@@ -103,6 +103,7 @@ export async function GET(request: NextRequest) {
 
     const rows = aptos.map(r => {
       const base = {
+        id_registro_utle:      r.id_registro,
         id:                    r.cedula_raw,
         name:                  r.nombre_paciente,
         phone:                 (r.telefono ?? '').replace(/\D/g, ''),

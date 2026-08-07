@@ -2,41 +2,23 @@
 /**
  * _wa-import-results.js
  *
- * Importa el Excel de resultados que devuelve COCO tras ejecutar una campaña WA.
- * Actualiza en BD: campos whatsapp_* en registros + inserta/actualiza en respuestas.
- *
- * Match: N° Identificación (cédula) → cedula_raw del registro con ese whatsapp_campana_id
+ * Lee todos los Excel de resultados COCO desde scripts/wa-data/{WA_CAMPANA}/resultados/
+ * y actualiza Supabase:
+ *   - registros: whatsapp_estado, whatsapp_enviado_at, whatsapp_respondio_at, estado
+ *   - respuestas: todos los campos homologados (canal='whatsapp')
  *
  * Uso:
- *   node --env-file=.env.local scripts/_wa-import-results.js \
- *        --file "scripts/output/campaigns_XXXXXXXX.xlsx" \
- *        --campana WA-CIRUGIA-01
- *
- *   Con dry-run (no escribe):
- *   node --env-file=.env.local scripts/_wa-import-results.js \
- *        --file "scripts/output/campaigns_XXXXXXXX.xlsx" \
- *        --campana WA-CIRUGIA-01 --dry-run
- *
- * Columnas esperadas en el Excel de COCO (22-23 cols):
- *   id, name, phone, error, hour_sent
- *   Estado final, Verificación de identidad, Datos del caso
- *   ¿Desea continuar con esta atención pendiente?
- *   Flexibilidad de centro médico
- *   Motivo de no asistencia
- *   Condiciones para asistir          (columna opcional — versiones antiguas del flujo)
- *   Motivo de retiro de lista de espera (columna opcional)
- *   Medio de contacto preferido
- *   N° Identificación   ← KEY de match con cedula_raw
- *   Tipo de atención, Servicio, Especialidad, Centro médico
- *   Procedimiento, Tipo de consulta, Lateralidad, Fecha de cita, Hora de cita
+ *   node --env-file=.env.local scripts/_wa-import-results.js --campana WA-CIRUGIA-01
+ *   node --env-file=.env.local scripts/_wa-import-results.js --campana WA-CIRUGIA-01 --dry-run
  */
 
-const XLSX          = require('xlsx')
-const path          = require('path')
+const XLSX             = require('xlsx')
+const path             = require('path')
+const fs               = require('fs')
 const { createClient } = require('@supabase/supabase-js')
 
-const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('❌ Faltan variables de entorno. Ejecutar con --env-file=.env.local')
@@ -48,237 +30,355 @@ function arg(name) {
   return i !== -1 ? (process.argv[i + 1] ?? '') : ''
 }
 
-const FILE_PATH  = arg('--file')
 const WA_CAMPANA = arg('--campana')
 const DRY_RUN    = process.argv.includes('--dry-run')
 
-if (!FILE_PATH || !WA_CAMPANA) {
-  console.error('\n❌ Uso: node --env-file=.env.local scripts/_wa-import-results.js --file <ruta.xlsx> --campana WA-CIRUGIA-01\n')
+if (!WA_CAMPANA) {
+  console.error('❌ --campana requerido. Ej: --campana WA-CIRUGIA-01')
   process.exit(1)
 }
+
+const RESULTADOS_DIR = path.join(__dirname, 'wa-data', WA_CAMPANA, 'resultados')
 
 const sb    = createClient(SUPABASE_URL, SERVICE_KEY)
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
-// ── Mapeo de estados COCO → BD ────────────────────────────────────────────────
-function mapWaEstado(estadoCoco, error) {
-  if (error && error.trim() && error.trim() !== '-') return 'fallido'
-  const e = (estadoCoco || '').trim()
-  if (!e || e === '-') return 'no_respondio'
-  if (e.toLowerCase().includes('complet')) return 'respondio'
-  return 'no_respondio'
+// ── Mapas de homologación ─────────────────────────────────────────────────────
+
+const MOTIVO_RETIRO_MAP = {
+  'Ya no deseo la atención':            'ya_no_deseo_la_atencion',
+  'Acudí a otro centro de la CCSS':     'acudi_ccss',
+  'Acudí a otro centro médico privado': 'acudi_privado',
+  'Ya no necesito la atención':         'ya_no_necesito',
+  'Contraindicación médica':            'contraindicacion_medica',
+  'Fallecimiento':                      'fallecimiento',
 }
 
-function mapEstadoFinal(desea, motivoRetiro) {
-  const d = (desea || '').toLowerCase()
-  if (!d || d === '-') return null
-  if (d.includes('sí') || d.includes('si') || d.includes('puede asistir')) return 'ACTIVO'
-  if (d.includes('no')) return 'DEPURADO_RENUNCIA'
-  return 'ACTIVO'
+const MOTIVO_NO_ASISTIR_MAP = {
+  'Problemas de salud':                           'problemas_salud',
+  'Hospitalización o recuperación médica':        'hospitalizacion',
+  'Falta de transporte o traslado':               'falta_transporte',
+  'Falta de acompañante o situación familiar':    'falta_acompanante',
+  'Obligaciones laborales, académicas o legales': 'obligaciones',
+  'Problemas económicos':                         'problemas_economicos',
+  'Fuera del país o de la zona':                  'fuera_pais',
+  'Decisión personal':                            'decision_personal',
+  'Otro motivo':                                  'otro_motivo',
 }
 
-function clean(val) {
-  const v = (val || '').toString().trim()
-  return (!v || v === '-') ? null : v
+const MEDIO_CONTACTO_MAP = {
+  'Llamada telefónica':     'llamada',
+  'WhatsApp':               'whatsapp',
+  'Correo electrónico':     'correo',
+  'SMS':                    'sms',
+  'Cualquiera de opciones': 'cualquiera',
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function clean(v) {
+  const s = String(v ?? '').trim()
+  return (!s || s === '-') ? null : s
+}
+
+function mapLookup(map, val) {
+  if (!val) return null
+  return map[val] ?? val
 }
 
 function parseHourSent(val) {
   if (!val) return null
-  // COCO devuelve fecha como string o número Excel
   try {
     if (typeof val === 'number') {
       const d = XLSX.SSF.parse_date_code(val)
       if (!d) return null
       return new Date(Date.UTC(d.y, d.m - 1, d.d, d.H, d.M, d.S)).toISOString()
     }
-    const d = new Date(val)
+    const d = new Date(String(val))
     return isNaN(d.getTime()) ? null : d.toISOString()
   } catch { return null }
 }
 
-async function main() {
-  console.log(`\n📥 WA IMPORT RESULTADOS — ${WA_CAMPANA}`)
-  console.log(`   Archivo: ${FILE_PATH}`)
-  console.log(`   Modo   : ${DRY_RUN ? 'DRY RUN' : 'PRODUCCIÓN'}\n`)
+// ── Clasificación por precedencia ─────────────────────────────────────────────
 
-  // ── 1. Leer Excel COCO ───────────────────────────────────────────────────────
-  let wb
-  try {
-    wb = XLSX.readFile(path.resolve(FILE_PATH))
-  } catch (e) {
-    console.error('❌ No se pudo leer el archivo:', e.message)
+function clasificar(row) {
+  const errorCoco   = clean(row['error'])
+  const cons        = clean(row['Consentimiento informado'])
+  const ver         = clean(row['Verificación de identidad'])
+  const datos       = clean(row['Datos del caso'])
+  const desea       = clean(row['¿Desea continuar con esta atención pendiente?'])
+  const retiro      = clean(row['Motivo de retiro de lista de espera'])
+  const incorrectos = clean(row['Datos incorrectos reportados por el paciente'])
+  const estadoCoco  = clean(row['Estado final'])
+
+  if (errorCoco) return { estadoFinal: null, estadoRegistro: null, waEstado: 'fallido', hasInteraction: false, pasoAbandono: null }
+
+  if (cons === 'No autorizo')
+    return { estadoFinal: 'NO_AUTORIZO', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 1 }
+
+  if (ver && ver.includes('Agotó'))
+    return { estadoFinal: 'NO_VERIFICADO', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 2 }
+
+  if (incorrectos)
+    return { estadoFinal: 'INFO_INCORRECTA', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 3 }
+
+  if (retiro)
+    return { estadoFinal: 'DEPURADO_RENUNCIA', estadoRegistro: 'DEPURADO_RENUNCIA', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 4 }
+
+  if (estadoCoco && estadoCoco.toLowerCase().includes('complet'))
+    return { estadoFinal: 'ACTIVO', estadoRegistro: 'ACTIVO', waEstado: 'respondio', hasInteraction: true, pasoAbandono: null }
+
+  if (ver === 'Verificado correctamente') {
+    if (desea) return { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 5 }
+    if (datos) return { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 4 }
+    return    { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 3 }
+  }
+
+  return { estadoFinal: null, estadoRegistro: null, waEstado: 'no_respondio', hasInteraction: false, pasoAbandono: null }
+}
+
+// ── Normalización a códigos canónicos ─────────────────────────────────────────
+
+function normalizarRespuesta(row, clasificacion) {
+  const ver         = clean(row['Verificación de identidad'])
+  const datos       = clean(row['Datos del caso'])
+  const desea       = clean(row['¿Desea continuar con esta atención pendiente?'])
+  const retiro      = clean(row['Motivo de retiro de lista de espera'])
+  const incorrectos = clean(row['Datos incorrectos reportados por el paciente'])
+  const flex        = clean(row['Flexibilidad de centro médico'])
+  const cond        = clean(row['Condiciones para asistir'])
+  const motivoNo    = clean(row['Motivo de no asistencia'])
+  const medio       = clean(row['Medio de contacto preferido'])
+
+  const { estadoFinal, pasoAbandono, hasInteraction } = clasificacion
+
+  const paso1 = estadoFinal === 'NO_AUTORIZO'
+    ? 'no_autorizo'
+    : (hasInteraction && ver !== null ? 'si_autorizo' : null)
+
+  const paso2 = ver === 'Verificado correctamente' ? 'exitosa'
+    : (ver && ver.includes('Agotó') ? 'fallida' : null)
+
+  const paso3 = datos === 'La información es correcta' ? 'si'
+    : (incorrectos ? 'no' : null)
+
+  const paso4 = (desea && (desea.includes('Sí') || desea.includes('Si'))) ? 'si'
+    : (retiro ? 'no_ya_no_deseo' : null)
+
+  const paso5a = flex && flex.includes('dispuesto') ? 'si'
+    : (flex && flex.includes('disponible') ? 'no' : null)
+
+  const paso5b = cond && cond.includes('asistir') ? 'si'
+    : (motivoNo ? 'no' : null)
+
+  return {
+    canal:                       'whatsapp',
+    paso_1_consentimiento:       paso1,
+    paso_2_verificacion:         paso2,
+    paso_3_info_correcta:        paso3,
+    paso_3_error:                incorrectos,
+    paso_4_desea_continuar:      paso4,
+    motivo_retiro:               mapLookup(MOTIVO_RETIRO_MAP, retiro),
+    paso_5a_flexibilidad_centro: paso5a,
+    paso_5b_condiciones_asistir: paso5b,
+    paso_5b_motivo_no_asistir:   mapLookup(MOTIVO_NO_ASISTIR_MAP, motivoNo),
+    paso_6_medio_contacto:       mapLookup(MEDIO_CONTACTO_MAP, medio),
+    estado_final:                estadoFinal,
+    completado:                  estadoFinal === 'ACTIVO',
+    paso_abandono:               pasoAbandono,
+  }
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+async function main() {
+  console.log(`\n📲 WA Import Results — ${WA_CAMPANA}`)
+  console.log(`   Modo: ${DRY_RUN ? 'DRY RUN' : 'PRODUCCIÓN'}\n`)
+
+  // Verificar carpeta
+  if (!fs.existsSync(RESULTADOS_DIR)) {
+    console.error(`❌ Carpeta no encontrada: ${RESULTADOS_DIR}`)
     process.exit(1)
   }
 
-  const sheetName = wb.SheetNames[0]
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' })
-  console.log(`📄 Hoja "${sheetName}": ${rows.length} filas`)
+  // Leer todos los xlsx en resultados/
+  const archivos = fs.readdirSync(RESULTADOS_DIR)
+    .filter(f => f.endsWith('.xlsx') && !f.startsWith('~$'))
 
-  if (rows.length === 0) {
-    console.log('⚠️  Sin datos. Verificar archivo.')
-    return
+  if (archivos.length === 0) {
+    console.error(`❌ No hay archivos .xlsx en ${RESULTADOS_DIR}`)
+    process.exit(1)
   }
 
-  // Mostrar columnas detectadas
-  console.log(`   Columnas: ${Object.keys(rows[0]).join(' | ')}\n`)
+  console.log(`   Archivos encontrados: ${archivos.length}`)
+  archivos.forEach(f => console.log(`     - ${f}`))
 
-  // ── 2. Construir mapa cédula → id_registro desde BD ─────────────────────────
-  console.log('🔍 Cargando registros de BD para match...')
-  const cedulaMap = new Map() // cedula_raw → id_registro
+  // Leer y combinar todas las filas
+  let allRows = []
+  for (const archivo of archivos) {
+    const wb   = XLSX.readFile(path.join(RESULTADOS_DIR, archivo))
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' })
+    console.log(`   ${archivo}: ${rows.length} filas`)
+    allRows = allRows.concat(rows)
+  }
+
+  // Deduplicar por N° Identificación (si hay archivos solapados)
+  const seen   = new Set()
+  const rows   = []
+  let   dupCnt = 0
+  for (const r of allRows) {
+    const ced = clean(r['id'] ?? r['N° Identificación'] ?? '')
+    if (!ced) continue
+    if (seen.has(ced)) { dupCnt++; continue }
+    seen.add(ced)
+    rows.push(r)
+  }
+  console.log(`\n   Total filas únicas: ${rows.length}${dupCnt ? ` (${dupCnt} duplicadas ignoradas)` : ''}`)
+
+  // Cargar mapa cédula → registros desde Supabase
+  console.log(`\n🔍 Cargando registros con whatsapp_campana_id='${WA_CAMPANA}'...`)
+  const cedulaMap = new Map()
   let from = 0
   while (true) {
     const { data, error } = await sb
       .from('registros')
-      .select('id_registro, cedula_raw')
+      .select('id_registro, cedula_raw, especialidad, encuesta_completada_at')
       .eq('whatsapp_campana_id', WA_CAMPANA)
-      .range(from, from + 1000 - 1)
+      .order('id_registro')
+      .range(from, from + 999)
 
-    if (error) { console.error('❌ Supabase:', error.message); process.exit(1) }
+    if (error) { console.error('❌ Error Supabase:', error.message); process.exit(1) }
     if (!data || data.length === 0) break
     for (const r of data) {
-      if (r.cedula_raw) cedulaMap.set(r.cedula_raw.toString().trim(), r.id_registro)
+      if (!r.cedula_raw) continue
+      const c   = String(r.cedula_raw).trim()
+      const arr = cedulaMap.get(c)
+      if (arr) arr.push(r)
+      else cedulaMap.set(c, [r])
     }
     if (data.length < 1000) break
     from += 1000
   }
-  console.log(`   Registros en BD para esta campaña: ${cedulaMap.size}`)
+  console.log(`   Registros en BD con esta campaña: ${[...cedulaMap.values()].reduce((s, a) => s + a.length, 0)}`)
 
-  // ── 3. Procesar filas del Excel ──────────────────────────────────────────────
-  let matched = 0, noMatch = 0, errores = 0
-  let waRespondio = 0, waNoResp = 0, waFallido = 0
-
-  const updatesRegistros  = []
-  const upsertRespuestas  = []
+  // Procesar filas
+  let matched = 0, noMatch = 0
+  const contadores = { activo: 0, depurado: 0, no_autorizo: 0, no_verificado: 0, info_incorrecta: 0, abandono: 0, no_respondio: 0, fallido: 0 }
+  const updatesRegistros = []
+  const upsertRespuestas = []
 
   for (const row of rows) {
-    const cedula = clean(row['N° Identificación'] ?? row['id'] ?? '')
+    const cedula  = clean(row['id'] ?? row['N° Identificación'] ?? '')
     if (!cedula) { noMatch++; continue }
 
-    const idRegistro = cedulaMap.get(cedula)
-    if (!idRegistro) { noMatch++; continue }
+    const allRegs = cedulaMap.get(cedula) ?? []
+    if (allRegs.length === 0) { noMatch++; continue }
 
-    matched++
+    const cocoEsp     = String(row['Especialidad'] ?? '').trim()
+    const matchingRegs = cocoEsp
+      ? (allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp).length > 0
+          ? allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp)
+          : allRegs)
+      : allRegs
 
-    const estadoCoco  = clean(row['Estado final'])
-    const errorCoco   = clean(row['error'])
-    const waEstado    = mapWaEstado(estadoCoco, errorCoco)
-    const hourSent    = parseHourSent(row['hour_sent'])
+    matched += matchingRegs.length
 
-    const desea           = clean(row['¿Desea continuar con esta atención pendiente?'])
-    const flexibilidad    = clean(row['Flexibilidad de centro médico'])
-    const motivoNoAsistir = clean(row['Motivo de no asistencia'])
-    const condiciones     = clean(row['Condiciones para asistir'])
-    const motivoRetiro    = clean(row['Motivo de retiro de lista de espera'])
-    const medioContacto   = clean(row['Medio de contacto preferido'])
-    const verificacion    = clean(row['Verificación de identidad'])
+    const clasificacion = clasificar(row)
+    const hourSent      = parseHourSent(row['hour_sent'])
 
-    if (waEstado === 'respondio') waRespondio++
-    else if (waEstado === 'fallido') waFallido++
-    else waNoResp++
+    if      (clasificacion.estadoFinal === 'ACTIVO')            contadores.activo++
+    else if (clasificacion.estadoFinal === 'DEPURADO_RENUNCIA') contadores.depurado++
+    else if (clasificacion.estadoFinal === 'NO_AUTORIZO')       contadores.no_autorizo++
+    else if (clasificacion.estadoFinal === 'NO_VERIFICADO')     contadores.no_verificado++
+    else if (clasificacion.estadoFinal === 'INFO_INCORRECTA')   contadores.info_incorrecta++
+    else if (clasificacion.hasInteraction)                      contadores.abandono++
+    else if (clasificacion.waEstado === 'fallido')              contadores.fallido++
+    else                                                        contadores.no_respondio++
 
-    // Update registros
-    const updReg = {
-      id_registro:          idRegistro,
-      whatsapp_enviado_at:  hourSent,
-      whatsapp_estado:      waEstado,
-      whatsapp_error:       errorCoco,
-    }
-    if (waEstado === 'respondio') {
-      updReg.whatsapp_respondio_at = hourSent  // aproximación — COCO no da timestamp de respuesta separado
-    }
-    updatesRegistros.push(updReg)
+    for (const reg of matchingRegs) {
+      const yaCompletoPorCorreo = !!reg.encuesta_completada_at
 
-    // Solo insertar/actualizar respuestas si completó el flujo WA
-    if (waEstado === 'respondio') {
-      const estadoFinal = mapEstadoFinal(desea, motivoRetiro)
-      upsertRespuestas.push({
-        id_registro:               idRegistro,
-        canal:                     'whatsapp',
-        paso_1_consentimiento:     clean(row['Consentimiento informado']),
-        paso_2_verificacion:       verificacion,
-        paso_3_info_correcta:      clean(row['Datos del caso']),
-        paso_4_desea_continuar:    desea,
-        motivo_retiro:             motivoRetiro,
-        paso_5a_flexibilidad_centro: flexibilidad,
-        paso_5b_condiciones_asistir: condiciones,
-        paso_5b_motivo_no_asistir:   motivoNoAsistir,
-        paso_6_medio_contacto:     medioContacto,
-        estado_final:              estadoFinal,
-        completado:                true,
-      })
+      const updReg = {
+        id_registro:         reg.id_registro,
+        _wa_estado:          clasificacion.waEstado,
+        whatsapp_enviado_at: hourSent,
+        whatsapp_estado:     clasificacion.waEstado,
+        whatsapp_error:      clean(row['error']),
+      }
+      if (clasificacion.hasInteraction && hourSent) updReg.whatsapp_respondio_at = hourSent
+      if (clasificacion.estadoFinal === 'ACTIVO' && !yaCompletoPorCorreo && hourSent) updReg.encuesta_completada_at = hourSent
+      if (clasificacion.estadoRegistro) updReg.estado = clasificacion.estadoRegistro
+
+      updatesRegistros.push(updReg)
+
+      if (clasificacion.hasInteraction) {
+        upsertRespuestas.push({
+          id_registro: reg.id_registro,
+          ...normalizarRespuesta(row, clasificacion),
+        })
+      }
     }
   }
 
-  // ── 4. Reporte pre-escritura ─────────────────────────────────────────────────
-  console.log(`\n📊 RESULTADO DEL MATCH`)
-  console.log(`   Filas en Excel         : ${rows.length}`)
-  console.log(`   Matched con BD         : ${matched}`)
-  console.log(`   Sin match (no en BD)   : ${noMatch}`)
-  console.log()
-  console.log(`   Respondieron (WA)      : ${waRespondio}`)
-  console.log(`   No respondieron        : ${waNoResp}`)
-  console.log(`   Fallidos (error)       : ${waFallido}`)
-  console.log(`   Con respuesta a insertar: ${upsertRespuestas.length}`)
+  // Resumen
+  console.log(`\n📊 Análisis:`)
+  console.log(`   Matcheados         : ${matched}`)
+  console.log(`   Sin match          : ${noMatch}`)
+  console.log(`   ACTIVO             : ${contadores.activo}`)
+  console.log(`   DEPURADO_RENUNCIA  : ${contadores.depurado}`)
+  console.log(`   NO_AUTORIZO        : ${contadores.no_autorizo}`)
+  console.log(`   NO_VERIFICADO      : ${contadores.no_verificado}`)
+  console.log(`   INFO_INCORRECTA    : ${contadores.info_incorrecta}`)
+  console.log(`   Abandono parcial   : ${contadores.abandono}`)
+  console.log(`   No respondió       : ${contadores.no_respondio}`)
+  console.log(`   Fallido (error)    : ${contadores.fallido}`)
+  console.log(`   Respuestas a crear : ${upsertRespuestas.length}`)
 
   if (DRY_RUN) {
-    console.log('\n🧪 DRY RUN — muestra de lo que se escribiría:')
-    updatesRegistros.slice(0, 3).forEach(u =>
-      console.log(`   ${u.id_registro} | wa_estado: ${u.whatsapp_estado} | enviado: ${u.whatsapp_enviado_at}`)
-    )
-    console.log('\n✅ DRY RUN completado — nada escrito en BD.\n')
+    console.log('\n✅ DRY RUN — sin cambios en BD.\n')
     return
   }
 
-  if (matched === 0) {
-    console.log('\n⚠️  Ningún registro matchó. Verifique que el archivo y --campana sean correctos.\n')
-    return
-  }
-
-  // ── 5. Actualizar registros ──────────────────────────────────────────────────
-  console.log(`\n📝 Actualizando registros...`)
+  // Actualizar registros
+  console.log(`\n📤 Actualizando registros...`)
   const BATCH = 100
+  let errores = 0
   for (let i = 0; i < updatesRegistros.length; i += BATCH) {
     const batch = updatesRegistros.slice(i, i + BATCH)
     for (const upd of batch) {
-      const { id_registro, ...campos } = upd
-      // Limpiar campos null para no sobreescribir con null
-      const camposLimpios = Object.fromEntries(Object.entries(campos).filter(([, v]) => v !== null && v !== undefined))
+      const { id_registro, _wa_estado, ...campos } = upd
+      const camposLimpios = Object.fromEntries(
+        Object.entries(campos).filter(([, v]) => v !== null && v !== undefined)
+      )
       if (Object.keys(camposLimpios).length === 0) continue
-      const { error } = await sb.from('registros').update(camposLimpios).eq('id_registro', id_registro)
-      if (error) { errores++; console.error(`   ⚠️  ${id_registro}: ${error.message}`) }
+      let query = sb.from('registros').update(camposLimpios).eq('id_registro', id_registro)
+      if (_wa_estado !== 'respondio') query = query.neq('whatsapp_estado', 'respondio')
+      const { error } = await query
+      if (error) errores++
     }
-    process.stdout.write(`\r   Procesados: ${Math.min(i + BATCH, updatesRegistros.length)}/${updatesRegistros.length}`)
-    await sleep(200)
+    process.stdout.write(`\r   Progreso registros: ${Math.min(i + BATCH, updatesRegistros.length)}/${updatesRegistros.length}`)
+    await sleep(150)
   }
-  console.log(`\n   ✅ ${updatesRegistros.length - errores} registros actualizados`)
+  console.log(`\n   Errores: ${errores}`)
 
-  // ── 6. Upsert respuestas ─────────────────────────────────────────────────────
-  if (upsertRespuestas.length > 0) {
-    console.log(`\n📝 Insertando/actualizando respuestas WA...`)
-    let respErrores = 0
-    for (let i = 0; i < upsertRespuestas.length; i += BATCH) {
-      const batch = upsertRespuestas.slice(i, i + BATCH)
-      const { error } = await sb.from('respuestas')
-        .upsert(batch, { onConflict: 'id_registro, canal', ignoreDuplicates: false })
-      if (error) { respErrores += batch.length; console.error(`   ⚠️  Batch ${i}: ${error.message}`) }
-      process.stdout.write(`\r   Procesados: ${Math.min(i + BATCH, upsertRespuestas.length)}/${upsertRespuestas.length}`)
-      await sleep(200)
-    }
-    console.log(`\n   ✅ ${upsertRespuestas.length - respErrores} respuestas insertadas/actualizadas`)
+  // Upsert respuestas
+  console.log(`\n📝 Insertando respuestas (${upsertRespuestas.length} registros)...`)
+  let erroresResp = 0
+  for (let i = 0; i < upsertRespuestas.length; i += BATCH) {
+    const batch = upsertRespuestas.slice(i, i + BATCH)
+    const { error } = await sb
+      .from('respuestas')
+      .upsert(batch, { onConflict: 'id_registro, canal', ignoreDuplicates: false })
+    if (error) { erroresResp += batch.length; console.error(`\n   Error: ${error.message}`) }
+    process.stdout.write(`\r   Progreso respuestas: ${Math.min(i + BATCH, upsertRespuestas.length)}/${upsertRespuestas.length}`)
+    await sleep(150)
   }
+  console.log(`\n   Errores: ${erroresResp}`)
 
-  // ── 7. Resumen final ─────────────────────────────────────────────────────────
   console.log(`\n${'═'.repeat(55)}`)
-  console.log(`✅ IMPORT COMPLETADO — ${WA_CAMPANA}`)
-  console.log(`   Matched y procesados : ${matched}`)
-  console.log(`   Respondieron vía WA  : ${waRespondio}`)
-  console.log(`   No respondieron      : ${waNoResp} → elegibles para llamada`)
-  console.log(`   Fallidos             : ${waFallido} → revisar + reintentar`)
-  console.log(`   Errores BD           : ${errores}`)
-  if (noMatch > 0) console.log(`   ⚠️  Sin match         : ${noMatch} (no estaban en esta campaña)`)
-  console.log()
-  console.log('   Siguiente paso: escalación a llamada')
-  console.log('   WHERE whatsapp_estado IN (\'no_respondio\',\'fallido\') AND llamada_enviada_at IS NULL')
+  console.log(`✅ Import WA-CIRUGIA-01 completado`)
+  console.log(`   Registros actualizados : ${updatesRegistros.length}`)
+  console.log(`   Respuestas guardadas   : ${upsertRespuestas.length}`)
   console.log()
 }
 

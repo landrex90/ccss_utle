@@ -218,7 +218,7 @@ async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: strin
     q().eq('whatsapp_estado', 'respondio').eq('estado', 'NO_VERIFICADO'),
   ])
   return {
-    enviados:          (total ?? 0) - (sinCelular ?? 0),
+    enviados:          (respondioC ?? 0) + (noRespondioC ?? 0),
     respondio:         respondioC ?? 0,
     no_respondio:      noRespondioC ?? 0,
     entregados:        entregadosC ?? 0,
