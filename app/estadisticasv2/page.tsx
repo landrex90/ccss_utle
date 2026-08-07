@@ -240,14 +240,15 @@ async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: Ca
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
-async function getLlamadasPendientes(sb: ReturnType<typeof createClient>): Promise<number> {
+async function getLlamadasPendientes(sb: ReturnType<typeof createClient>, campanaIds: string[]): Promise<number> {
   // llamada_campana_id IS NOT NULL = asignado explícitamente por el export
   // encuesta_completada_at IS NULL = aún no ha respondido
-  // (llamada_estado DEFAULT 'pendiente' aplica a todos los registros, no sirve como filtro)
+  // Filtra por las campañas del tipo seleccionado (Todos / Cirugía / CE / Procedimientos)
   const { count } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
     .not('llamada_campana_id', 'is', null)
     .is('encuesta_completada_at', null)
+    .in('encuesta_campana_id', campanaIds)
   return count ?? 0
 }
 
@@ -271,7 +272,16 @@ async function getProximaFase(sb: ReturnType<typeof createClient>, campanaId: st
   }
 }
 
-interface Props { searchParams: { campana?: string } }
+// Mismo criterio de filtrado que usa el componente cliente
+function getTipoServer(id: string): string {
+  const u = id.toUpperCase()
+  if (u.includes('CIRUGIA'))                                             return 'Cirugía'
+  if (u.includes('_CE') || u.includes('-CE') || u.includes('CONSULTA')) return 'CE'
+  if (u.includes('PROCEDIMIENTO') || u.includes('PROC'))                return 'Procedimientos'
+  return 'Todos'
+}
+
+interface Props { searchParams: { campana?: string; tipo?: string } }
 
 export default async function EstadisticasV2Page({ searchParams }: Props) {
   const sb = createClient()
@@ -288,6 +298,13 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
 
   const waMap = await getWaEncuestaMap(sb, campanas.map(c => c.id))
 
+  // Campañas filtradas por tipo (para que llamadasPendientes respete el filtro activo)
+  const tipoFiltro = searchParams.tipo ?? 'Todos'
+  const campanasFiltradas = tipoFiltro === 'Todos'
+    ? campanas
+    : campanas.filter(c => getTipoServer(c.id) === tipoFiltro)
+  const campanaIdsFiltradas = campanasFiltradas.map(c => c.id)
+
   const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
@@ -298,7 +315,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
     getWaData(sb, waMap[campanaActual] ?? null),
     getEstadosPorCampana(sb, campanas),
     getWaPorCampana(sb, campanas, waMap),
-    getLlamadasPendientes(sb),
+    getLlamadasPendientes(sb, campanaIdsFiltradas),
   ])
 
   return (
