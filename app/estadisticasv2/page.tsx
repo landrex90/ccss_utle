@@ -241,9 +241,13 @@ async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: Ca
 }
 
 async function getLlamadasPendientes(sb: ReturnType<typeof createClient>): Promise<number> {
+  // llamada_campana_id IS NOT NULL = asignado explícitamente por el export
+  // encuesta_completada_at IS NULL = aún no ha respondido
+  // (llamada_estado DEFAULT 'pendiente' aplica a todos los registros, no sirve como filtro)
   const { count } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
-    .eq('llamada_estado', 'pendiente')
+    .not('llamada_campana_id', 'is', null)
+    .is('encuesta_completada_at', null)
   return count ?? 0
 }
 
