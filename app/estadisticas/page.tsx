@@ -182,7 +182,7 @@ async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds:
     campanaIds.map(async (enc) => {
       const { data } = await sb
         .from('registros')
-        .select('whatsapp_campana_id')
+        .select('whatsapp_campana_id, encuesta_campana_id')
         .eq('encuesta_campana_id', enc)
         .not('whatsapp_campana_id', 'is', null)
         .limit(1)
@@ -196,7 +196,8 @@ async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds:
 async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: string | null): Promise<WaData> {
   if (!waCampanaId) return { enviados: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
 
-  const q = () => sb.from('registros').eq('whatsapp_campana_id', waCampanaId)
+  // select() debe ir antes de eq() para que TS resuelva PostgrestFilterBuilder correctamente
+  const q = () => sb.from('registros').select('*', { count: 'exact', head: true }).eq('whatsapp_campana_id', waCampanaId)
   const [
     { count: total },
     { count: sinCelular },
@@ -209,16 +210,16 @@ async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: strin
     { count: noAutorizoC },
     { count: noVerifC },
   ] = await Promise.all([
-    q().select('*', { count: 'exact', head: true }),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'sin_celular'),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio'),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'no_respondio'),
-    q().select('*', { count: 'exact', head: true }).not('whatsapp_entregado_at', 'is', null),
-    q().select('*', { count: 'exact', head: true }).not('whatsapp_leido_at', 'is', null),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'ACTIVO'),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'DEPURADO_RENUNCIA'),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'NO_AUTORIZO'),
-    q().select('*', { count: 'exact', head: true }).eq('whatsapp_estado', 'respondio').eq('estado', 'NO_VERIFICADO'),
+    q(),
+    q().eq('whatsapp_estado', 'sin_celular'),
+    q().eq('whatsapp_estado', 'respondio'),
+    q().eq('whatsapp_estado', 'no_respondio'),
+    q().not('whatsapp_entregado_at', 'is', null),
+    q().not('whatsapp_leido_at', 'is', null),
+    q().eq('whatsapp_estado', 'respondio').eq('estado', 'ACTIVO'),
+    q().eq('whatsapp_estado', 'respondio').eq('estado', 'DEPURADO_RENUNCIA'),
+    q().eq('whatsapp_estado', 'respondio').eq('estado', 'NO_AUTORIZO'),
+    q().eq('whatsapp_estado', 'respondio').eq('estado', 'NO_VERIFICADO'),
   ])
   return {
     enviados:          (total ?? 0) - (sinCelular ?? 0),
