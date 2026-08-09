@@ -167,7 +167,8 @@ interface Props {
   waData:             WaData
   estadosPorCampana:  Record<string, EstadoRow[]>
   waPorCampana:       Record<string, WaData>
-  llamadasPendientes: number
+  llamadasPendientes:  number
+  llamadasRespondieron: number
   canExportWA?:       boolean
 }
 
@@ -215,7 +216,7 @@ function getTipo(id: string): TipoFiltro {
   return 'Todos'
 }
 
-export default function CampaignDashboardV2({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes, canExportWA }: Props) {
+export default function CampaignDashboardV2({ campanas, campanaActual, campanaInfo: c, estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes, llamadasRespondieron, canExportWA }: Props) {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const [tab, setTab]       = useState<Tab>((searchParams.get('tab') as Tab) ?? 'global')
@@ -272,12 +273,11 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
   const gWa      = mergeWa(campanasFiltradas.map(cc => waPorCampana[cc.id] ?? EMPTY_WA))
 
   // ── Embudo de captación ────────────────────────────────────────────────────────
-  // gCorreoRespondieron: completaron el formulario por correo (excluyendo los que vinieron vía WA)
-  // Solo WA-ACTIVO setea encuesta_completada_at en el import, los demás vienen del formulario email
-  const gCorreoRespondieron = Math.max(0, globalTotals.completado - gWa.activo)
-  const gWaRespondieron     = gWa.respondio  // cualquier interacción WA, sin importar resultado
-  const gTotalRespondieron  = gCorreoRespondieron + gWaRespondieron
-  const gCorreoNoCont       = Math.max(0, globalTotals.enviado - gCorreoRespondieron)
+  const gWaRespondieron      = gWa.respondio
+  // Correo puro = total completado menos los que vinieron vía WA (activo) y los de llamada
+  const gCorreoRespondieron  = Math.max(0, globalTotals.completado - gWa.activo - llamadasRespondieron)
+  const gTotalRespondieron   = gCorreoRespondieron + gWaRespondieron + llamadasRespondieron
+  const gCorreoNoCont        = Math.max(0, globalTotals.enviado - gCorreoRespondieron)
 
   // Para tab de campaña individual
   const waCompletados     = waData.activo + waData.depurado_renuncia
@@ -488,22 +488,39 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
 
               {/* ── VOICEBOT ── */}
               <div style={{ marginBottom:16 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                   <span style={{ fontSize:16 }}>📞</span>
-                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:C.gray }}>
+                  <span style={{ fontSize:11, fontWeight:700, letterSpacing:1.5, textTransform:'uppercase', color:C.blue }}>
                     Voicebot / Llamadas
                   </span>
-                  {llamadasPendientes > 0 && (
-                    <span style={{ marginLeft:'auto', fontSize:22, fontWeight:800, color:C.blue, fontVariantNumeric:'tabular-nums' }}>
-                      {fmt(llamadasPendientes)}
-                    </span>
-                  )}
+                  <span style={{ marginLeft:'auto', fontSize:22, fontWeight:800, color:C.blue, fontVariantNumeric:'tabular-nums' }}>
+                    {fmt(llamadasRespondieron + llamadasPendientes)}
+                  </span>
                 </div>
-                <div style={{ paddingLeft:24, borderLeft:`3px solid ${C.blueMd}`, fontSize:11, color:C.gray, fontStyle:'italic', paddingTop:2, paddingBottom:2 }}>
-                  {llamadasPendientes > 0
-                    ? `${fmt(llamadasPendientes)} en cola para llamada · resultados pendientes de importar`
-                    : 'Candidatos pendientes de determinar (depende del canal WA)'}
-                </div>
+                {(llamadasRespondieron + llamadasPendientes) > 0 ? (
+                  <div style={{ paddingLeft:24, borderLeft:`3px solid ${C.blueMd}` }}>
+                    {llamadasRespondieron > 0 && (
+                      <FunnelRow
+                        lbl="✅ Respondieron por voicebot"
+                        val={llamadasRespondieron}
+                        total={llamadasRespondieron + llamadasPendientes}
+                        color={C.green}
+                      />
+                    )}
+                    {llamadasPendientes > 0 && (
+                      <FunnelRow
+                        lbl="⏳ Sin respuesta aún"
+                        val={llamadasPendientes}
+                        total={llamadasRespondieron + llamadasPendientes}
+                        color="#CBD5E1"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ paddingLeft:24, fontSize:11, color:C.gray, fontStyle:'italic' }}>
+                    Candidatos según resultado canal WA
+                  </div>
+                )}
               </div>
 
               {/* ── Total efectividad ── */}
@@ -511,8 +528,9 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
                 <div>
                   <div style={{ fontSize:13, fontWeight:700, color:C.text }}>🎯 Respondieron en cualquier canal</div>
                   <div style={{ fontSize:11, color:C.gray, marginTop:3 }}>
-                    {fmt(gCorreoRespondieron)} por correo &nbsp;+&nbsp; {fmt(gWaRespondieron)} por WhatsApp
-                    {gWa.enviados === 0 && ' (voicebot pendiente)'}
+                    {fmt(gCorreoRespondieron)} correo
+                    {gWaRespondieron > 0 && <> &nbsp;+&nbsp; {fmt(gWaRespondieron)} WhatsApp</>}
+                    {llamadasRespondieron > 0 && <> &nbsp;+&nbsp; {fmt(llamadasRespondieron)} voicebot</>}
                   </div>
                 </div>
                 <div style={{ textAlign:'right' }}>

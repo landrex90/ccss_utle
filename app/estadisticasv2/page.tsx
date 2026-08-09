@@ -241,13 +241,20 @@ async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: Ca
 }
 
 async function getLlamadasPendientes(sb: ReturnType<typeof createClient>, campanaIds: string[]): Promise<number> {
-  // llamada_campana_id IS NOT NULL = asignado explícitamente por el export
-  // encuesta_completada_at IS NULL = aún no ha respondido
-  // Filtra por las campañas del tipo seleccionado (Todos / Cirugía / CE / Procedimientos)
   const { count } = await sb.from('registros')
     .select('*', { count: 'exact', head: true })
     .not('llamada_campana_id', 'is', null)
     .is('encuesta_completada_at', null)
+    .in('encuesta_campana_id', campanaIds)
+  return count ?? 0
+}
+
+async function getLlamadasRespondieron(sb: ReturnType<typeof createClient>, campanaIds: string[]): Promise<number> {
+  // Registros que fueron a llamada y tienen respuesta definitiva (encuesta_completada_at set por import llamadas)
+  const { count } = await sb.from('registros')
+    .select('*', { count: 'exact', head: true })
+    .not('llamada_campana_id', 'is', null)
+    .not('encuesta_completada_at', 'is', null)
     .in('encuesta_campana_id', campanaIds)
   return count ?? 0
 }
@@ -305,7 +312,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
     : campanas.filter(c => getTipoServer(c.id) === tipoFiltro)
   const campanaIdsFiltradas = campanasFiltradas.map(c => c.id)
 
-  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes] = await Promise.all([
+  const [estados, eficiencia, especialidades, dispositivos, formSteps, proximaFase, waData, estadosPorCampana, waPorCampana, llamadasPendientes, llamadasRespondieron] = await Promise.all([
     getEstados(sb, campanaActual),
     getEficiencia(sb, campanaActual, campanaInfo),
     getEspecialidades(sb, campanaActual),
@@ -316,6 +323,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
     getEstadosPorCampana(sb, campanas),
     getWaPorCampana(sb, campanas, waMap),
     getLlamadasPendientes(sb, campanaIdsFiltradas),
+    getLlamadasRespondieron(sb, campanaIdsFiltradas),
   ])
 
   return (
@@ -333,6 +341,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
       estadosPorCampana={estadosPorCampana}
       waPorCampana={waPorCampana}
       llamadasPendientes={llamadasPendientes}
+      llamadasRespondieron={llamadasRespondieron}
       canExportWA={canExportWA}
     />
   )

@@ -116,14 +116,15 @@ function clasificar(mapped, status, answeredBy) {
     return { estadoFinal: null, estadoRegistro: null, llamadaEstado: 'no_contestada', hasInteraction: false, pasoAbandono: null }
   }
 
-  const cons   = clean(mapped['Recolectar'])
+  // CE-01 usa clave "Autorizo"; CIRUGIA-01 usa "Recolectar" — fallback entre ambas
+  const cons   = clean(mapped['Recolectar'] ?? mapped['Autorizo'])
   const datos  = clean(mapped['Recolectar (3)'])
   const desea  = clean(mapped['Recolectar (4)'])
   const retiro = clean(mapped['MotivoRetiro'])
 
   // Paso 1 — No autorizó
   if (cons && cons.toLowerCase().includes('no autorizo')) {
-    return { estadoFinal: 'NO_AUTORIZO', estadoRegistro: null, llamadaEstado: 'completada', hasInteraction: true, pasoAbandono: 1 }
+    return { estadoFinal: 'NO_AUTORIZO', estadoRegistro: 'NO_AUTORIZO', llamadaEstado: 'completada', hasInteraction: true, pasoAbandono: 1 }
   }
 
   // Paso 3 — Info incorrecta (si datos no es "Si es correcta" y hay algo)
@@ -153,7 +154,7 @@ function clasificar(mapped, status, answeredBy) {
 // ── Normalización a respuestas canónicas ──────────────────────────────────────
 
 function normalizarRespuesta(mapped, payload, clasificacion) {
-  const cons       = clean(mapped['Recolectar'])
+  const cons       = clean(mapped['Recolectar'] ?? mapped['Autorizo'])
   const digitos    = clean(mapped['Recolectar (2)'])  // valor raw ingresado
   const comparar   = clean(payload['COMPARA_4_DIGITOS'] ?? payload['VALIDACION_ID'])
   const datos      = clean(mapped['Recolectar (3)'])
@@ -307,7 +308,8 @@ async function main() {
       llamada_enviada_at: sendAt,
     }
     if (clas.estadoRegistro)                       updReg.estado = clas.estadoRegistro
-    if (clas.estadoFinal === 'ACTIVO' && sendAt)   updReg.encuesta_completada_at = sendAt
+    const esRespuestaDefinitiva = clas.estadoFinal === 'ACTIVO' || clas.estadoFinal === 'DEPURADO_RENUNCIA' || clas.estadoFinal === 'NO_AUTORIZO'
+    if (esRespuestaDefinitiva && sendAt)           updReg.encuesta_completada_at = sendAt
 
     updatesRegistros.push(updReg)
 
