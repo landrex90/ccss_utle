@@ -172,7 +172,7 @@ interface Props {
   canExportWA?:       boolean
 }
 
-const EMPTY_WA: WaData = { enviados:0, respondio:0, no_respondio:0, entregados:0, leidos:0, activo:0, depurado_renuncia:0, no_autorizo:0, no_verificado:0 }
+const EMPTY_WA: WaData = { enviados:0, pendientes:0, respondio:0, no_respondio:0, entregados:0, leidos:0, activo:0, depurado_renuncia:0, no_autorizo:0, no_verificado:0 }
 
 function mergeEstados(allEstados: EstadoRow[][]): EstadoRow[] {
   const m: Record<string, number> = {}
@@ -183,6 +183,7 @@ function mergeEstados(allEstados: EstadoRow[][]): EstadoRow[] {
 function mergeWa(all: WaData[]): WaData {
   return all.reduce((a, w) => ({
     enviados:          a.enviados          + w.enviados,
+    pendientes:        a.pendientes        + w.pendientes,
     respondio:         a.respondio         + w.respondio,
     no_respondio:      a.no_respondio      + w.no_respondio,
     entregados:        a.entregados        + w.entregados,
@@ -464,18 +465,30 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
                 </div>
                 {gWa.enviados > 0 ? (
                   <div style={{ paddingLeft:24, borderLeft:`3px solid #86EFAC` }}>
-                    <FunnelRow
-                      lbl="✅ Respondieron por WhatsApp"
-                      val={gWaRespondieron}
-                      total={gWa.enviados}
-                      color={C.green}
-                    />
-                    <FunnelRow
-                      lbl="➡️ Continúan al voicebot"
-                      val={gWa.no_respondio}
-                      total={gWa.enviados}
-                      color="#CBD5E1"
-                    />
+                    {gWaRespondieron > 0 && (
+                      <FunnelRow
+                        lbl="✅ Respondieron por WhatsApp"
+                        val={gWaRespondieron}
+                        total={gWa.enviados}
+                        color={C.green}
+                      />
+                    )}
+                    {gWa.no_respondio > 0 && (
+                      <FunnelRow
+                        lbl="➡️ No respondieron → voicebot"
+                        val={gWa.no_respondio}
+                        total={gWa.enviados}
+                        color="#CBD5E1"
+                      />
+                    )}
+                    {gWa.pendientes > 0 && (
+                      <FunnelRow
+                        lbl="⏳ Pendiente resultado COCO"
+                        val={gWa.pendientes}
+                        total={gWa.enviados}
+                        color={C.amber}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div style={{ paddingLeft:24, fontSize:11, color:C.gray, fontStyle:'italic' }}>

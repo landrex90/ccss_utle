@@ -66,6 +66,7 @@ export interface ProximaFaseData {
 
 export interface WaData {
   enviados:          number
+  pendientes:        number
   respondio:         number
   no_respondio:      number
   entregados:        number
@@ -190,7 +191,7 @@ async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds:
 }
 
 async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: string | null): Promise<WaData> {
-  if (!waCampanaId) return { enviados: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
+  if (!waCampanaId) return { enviados: 0, pendientes: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
 
   // select() debe ir antes de eq() para que TS resuelva PostgrestFilterBuilder correctamente
   const q = () => sb.from('registros').select('*', { count: 'exact', head: true }).eq('whatsapp_campana_id', waCampanaId)
@@ -217,8 +218,10 @@ async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: strin
     q().eq('whatsapp_estado', 'respondio').eq('estado', 'NO_AUTORIZO'),
     q().eq('whatsapp_estado', 'respondio').eq('estado', 'NO_VERIFICADO'),
   ])
+  const aptos = (total ?? 0) - (sinCelular ?? 0)
   return {
-    enviados:          (respondioC ?? 0) + (noRespondioC ?? 0),
+    enviados:          aptos,
+    pendientes:        Math.max(0, aptos - (respondioC ?? 0) - (noRespondioC ?? 0)),
     respondio:         respondioC ?? 0,
     no_respondio:      noRespondioC ?? 0,
     entregados:        entregadosC ?? 0,
