@@ -15,12 +15,19 @@ function verifyRequest(rawBody: string, req: NextRequest): boolean {
   const sigHeader = req.headers.get('x-hub-signature')
   if (!sigHeader) return false
 
-  const sig      = sigHeader.startsWith('SHA256=') ? sigHeader.slice(7) : sigHeader
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex').toUpperCase()
-  const expBuf   = Buffer.from(expected)
-  const gotBuf   = Buffer.from(sig.toUpperCase())
-  if (expBuf.length !== gotBuf.length) return false
-  return timingSafeEqual(expBuf, gotBuf)
+  const sig = sigHeader.startsWith('SHA256=') ? sigHeader.slice(7) : sigHeader
+  const sigUpper = sig.toUpperCase()
+
+  // Infobip puede usar el secreto como string UTF-8 o como bytes hex-decodificados
+  const exp1 = createHmac('sha256', secret).update(rawBody).digest('hex').toUpperCase()
+  const exp2 = createHmac('sha256', Buffer.from(secret, 'hex')).update(rawBody).digest('hex').toUpperCase()
+  console.log('[infobip-llamadas] HMAC recibido:', sigUpper)
+  console.log('[infobip-llamadas] HMAC esperado (string key):', exp1)
+  console.log('[infobip-llamadas] HMAC esperado (hex key):', exp2)
+
+  const match1 = exp1.length === sigUpper.length && timingSafeEqual(Buffer.from(exp1), Buffer.from(sigUpper))
+  const match2 = exp2.length === sigUpper.length && timingSafeEqual(Buffer.from(exp2), Buffer.from(sigUpper))
+  return match1 || match2
 }
 
 // ── Mapper de campos ──────────────────────────────────────────────────────────
@@ -53,6 +60,7 @@ function extractFields(body: Record<string, unknown>) {
 
   const idRaw = String(
     payload['id_registro_utle'] ??
+    payload['id'] ??
     payload['externalPersonId'] ??
     r['externalPersonId'] ??
     body['externalPersonId'] ??
@@ -78,8 +86,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Log completo para verificar campos IVR en siguientes pruebas
-  console.log('[infobip-llamadas] payload:', JSON.stringify(body).slice(0, 1500))
+  // Log completo para verificar campos IVR y callbackData
+  console.log('[infobip-llamadas] payload:', JSON.stringify(body).slice(0, 2500))
 
   const { status, answeredBy, sendAt, mapped, payload, idRaw, raw } = extractFields(body)
 
@@ -88,7 +96,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!idRaw) {
-    console.error('[infobip-llamadas] id_registro_utle ausente. callbackData keys:', Object.keys(payload), 'result keys:', Object.keys(raw))
+    console.error('[infobip-llamadas] id_registro_utle ausente. callbackData:', JSON.stringify(payload).slice(0, 400), '| result keys:', Object.keys(raw))
     return NextResponse.json({ error: 'id_registro_utle requerido' }, { status: 422 })
   }
 
