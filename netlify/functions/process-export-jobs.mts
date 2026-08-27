@@ -2,7 +2,8 @@ import { schedule } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
 const PAGE_SIZE = 1000
-const CONCURRENCIA = 40
+const CONCURRENCIA = 25
+const TIEMPO_LIMITE_MS = 20_000 // dejamos margen bajo el límite de 30s de Netlify
 
 const COLUMNAS =
   'id_registro, nombre_paciente, numero_asegurado, correo, telefono,' +
@@ -62,64 +63,89 @@ export const handler = schedule("* * * * *", async () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: pendientes } = await supabase
+  // Prioriza continuar un trabajo ya en curso antes de empezar uno nuevo
+  const { data: jobs } = await supabase
     .from('export_jobs')
-    .select('id')
-    .eq('status', 'pending')
+    .select('id, next_offset, total_filas')
+    .in('status', ['pending', 'processing'])
+    .order('status', { ascending: false }) // 'processing' > 'pending' alfabéticamente
     .order('created_at', { ascending: true })
     .limit(1)
 
-  if (!pendientes || pendientes.length === 0) {
+  if (!jobs || jobs.length === 0) {
     return { statusCode: 200, body: 'sin trabajos pendientes' }
   }
 
-  const jobId = pendientes[0].id
-  await supabase.from('export_jobs').update({ status: 'processing' }).eq('id', jobId)
+  const job = jobs[0]
+  const inicio = Date.now()
 
   try {
-    const { count } = await supabase
-      .from('registros')
-      .select('id_registro', { count: 'exact', head: true })
-      .not('encuesta_campana_id', 'is', null)
+    let total = job.total_filas
+    if (total === null || total === undefined) {
+      const { count } = await supabase
+        .from('registros')
+        .select('id_registro', { count: 'exact', head: true })
+        .not('encuesta_campana_id', 'is', null)
+      total = count ?? 0
+      await supabase.from('export_jobs').update({ status: 'processing', total_filas: total }).eq('id', job.id)
+    }
 
-    const total = count ?? 0
-    const numPaginas = Math.ceil(total / PAGE_SIZE)
-    const offsets = Array.from({ length: numPaginas }, (_, i) => i * PAGE_SIZE)
+    let offset = job.next_offset
 
-    async function fetchPagina(offset: number) {
+    // Si es la primera vez que procesamos este trabajo, sembramos el encabezado
+    if (offset === 0) {
+      await supabase.from('export_jobs').update({ csv_content: CSV_HEADERS.map(csvEscape).join(',') + '\r\n' }).eq('id', job.id)
+    }
+
+    async function fetchPagina(off: number) {
       const { data } = await supabase
         .from('registros')
         .select(COLUMNAS)
         .not('encuesta_campana_id', 'is', null)
         .order('id_registro')
-        .range(offset, offset + PAGE_SIZE - 1)
+        .range(off, off + PAGE_SIZE - 1)
       return (data ?? []) as unknown as Record<string, unknown>[]
     }
 
-    const lines: string[] = [CSV_HEADERS.map(csvEscape).join(',')]
-    for (let i = 0; i < offsets.length; i += CONCURRENCIA) {
-      const lote = offsets.slice(i, i + CONCURRENCIA)
+    const nuevasLineas: string[] = []
+    while (offset < total && Date.now() - inicio < TIEMPO_LIMITE_MS) {
+      const lote = []
+      for (let i = 0; i < CONCURRENCIA && offset + i * PAGE_SIZE < total; i++) {
+        lote.push(offset + i * PAGE_SIZE)
+      }
       const resultados = await Promise.all(lote.map(fetchPagina))
       for (const rows of resultados) {
-        for (const r of rows) lines.push(rowToCsv(r))
+        for (const r of rows) nuevasLineas.push(rowToCsv(r))
       }
+      offset += lote.length * PAGE_SIZE
+      if (Date.now() - inicio >= TIEMPO_LIMITE_MS) break
     }
 
-    const csvContent = lines.join('\r\n')
+    if (nuevasLineas.length > 0) {
+      // Traer el contenido actual y anexar (Postgres TEXT concat vía RPC sería más
+      // eficiente, pero a esta escala de chunks es aceptable hacerlo en la app)
+      const { data: actual } = await supabase.from('export_jobs').select('csv_content').eq('id', job.id).single()
+      const csvActualizado = (actual?.csv_content ?? '') + nuevasLineas.join('\r\n') + '\r\n'
+      await supabase.from('export_jobs').update({ csv_content: csvActualizado, next_offset: offset }).eq('id', job.id)
+    }
 
-    await supabase
-      .from('export_jobs')
-      .update({ status: 'completed', csv_content: csvContent, completed_at: new Date().toISOString() })
-      .eq('id', jobId)
+    if (offset >= total) {
+      await supabase
+        .from('export_jobs')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', job.id)
+      console.log(`[process-export-jobs] job ${job.id} completado, ${total} filas`)
+      return { statusCode: 200, body: `completado: ${total} filas` }
+    }
 
-    console.log(`[process-export-jobs] job ${jobId} completado, ${lines.length - 1} filas`)
-    return { statusCode: 200, body: `completado: ${lines.length - 1} filas` }
+    console.log(`[process-export-jobs] job ${job.id} progreso: ${offset}/${total}`)
+    return { statusCode: 200, body: `progreso: ${offset}/${total}` }
   } catch (err) {
     console.error('[process-export-jobs] error', err)
     await supabase
       .from('export_jobs')
       .update({ status: 'failed', error_message: err instanceof Error ? err.message : String(err) })
-      .eq('id', jobId)
+      .eq('id', job.id)
     return { statusCode: 500 }
   }
 })
