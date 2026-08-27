@@ -259,38 +259,6 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
     finally { setExp(false) }
   }
 
-  const [expCompleto, setExpCompleto] = useState<'idle' | 'iniciando' | 'generando' | 'listo'>('idle')
-  async function handleExportCompleto() {
-    setExpCompleto('iniciando'); setExpErr('')
-    try {
-      const startRes = await fetch('/api/estadisticas/export-completo/start', { method: 'POST' })
-      const startBody = await startRes.json().catch(() => null)
-      if (!startRes.ok) { setExpErr(startBody?.error ?? 'Error al iniciar el export'); setExpCompleto('idle'); return }
-
-      const jobId = startBody.jobId
-      setExpCompleto('generando')
-
-      const poll = async (): Promise<void> => {
-        const res = await fetch(`/api/estadisticas/export-completo/status?jobId=${jobId}`)
-        const body = await res.json().catch(() => null)
-        if (!res.ok || body?.status === 'failed') {
-          setExpErr(body?.error ?? 'Error al generar el export'); setExpCompleto('idle'); return
-        }
-        if (body?.status === 'completed') {
-          const fecha = new Date().toISOString().slice(0, 10)
-          const a = document.createElement('a')
-          a.href = `/api/estadisticas/export-completo/download?jobId=${jobId}`
-          a.download = `CCSS_UTLE_consolidado_${fecha}.csv`
-          a.click()
-          setExpCompleto('idle')
-          return
-        }
-        setTimeout(poll, 4000)
-      }
-      poll()
-    } catch { setExpErr('Error de conexión'); setExpCompleto('idle') }
-  }
-
   const totalMax   = especialidades[0]?.total_piloto ?? 1
   const totalOsMax = Math.max(...Object.values(dispositivos.os), 1)
   const totalBrMax = Math.max(...Object.values(dispositivos.browser), 1)
@@ -395,10 +363,7 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
               )}
             </>
           )}
-          <button onClick={handleExportCompleto} disabled={expCompleto !== 'idle'} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.15)', color:'#fff', cursor:'pointer', fontWeight:700, marginLeft:'auto' }}>
-            {expCompleto === 'iniciando' ? 'Iniciando…' : expCompleto === 'generando' ? 'Generando… (puede tardar varios minutos, puedes seguir navegando)' : '↓ Exportar todo (consolidado)'}
-          </button>
-          <span style={{ fontSize:11, color:'#89B8DC' }}>
+          <span style={{ fontSize:11, color:'#89B8DC', marginLeft:'auto' }}>
             Actualiza en {cd}s &nbsp;
             <button onClick={refresh} style={{ fontSize:11, color:'#89B8DC', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Ahora</button>
           </span>
