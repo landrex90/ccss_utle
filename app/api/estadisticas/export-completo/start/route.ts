@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // La función programada process-export-jobs.mts recoge trabajos 'pending'
+  // cada minuto — no hace falta dispararla manualmente desde aquí.
   const { data: job, error } = await supabase
     .from('export_jobs')
     .insert({ username, status: 'pending' })
@@ -42,13 +44,6 @@ export async function POST(request: NextRequest) {
   if (error || !job) {
     return NextResponse.json({ error: 'No se pudo iniciar el export' }, { status: 500 })
   }
-
-  const siteUrl = process.env.URL || process.env.DEPLOY_URL || ''
-  fetch(`${siteUrl}/.netlify/functions/generate-export-completo-background`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jobId: job.id }),
-  }).catch(err => console.error('[export-start] no se pudo disparar la función de fondo:', err))
 
   return NextResponse.json({ jobId: job.id })
 }

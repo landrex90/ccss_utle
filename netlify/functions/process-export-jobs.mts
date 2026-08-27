@@ -1,3 +1,4 @@
+import { schedule } from "@netlify/functions"
 import { createClient } from "@supabase/supabase-js"
 
 const PAGE_SIZE = 1000
@@ -55,19 +56,27 @@ function rowToCsv(r: Record<string, unknown>): string {
   return values.map(csvEscape).join(',')
 }
 
-export const config = { background: true }
-
-export default async (req: Request) => {
-  const { jobId } = await req.json()
-
+export const handler = schedule("* * * * *", async () => {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  try {
-    await supabase.from('export_jobs').update({ status: 'processing' }).eq('id', jobId)
+  const { data: pendientes } = await supabase
+    .from('export_jobs')
+    .select('id')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(1)
 
+  if (!pendientes || pendientes.length === 0) {
+    return { statusCode: 200, body: 'sin trabajos pendientes' }
+  }
+
+  const jobId = pendientes[0].id
+  await supabase.from('export_jobs').update({ status: 'processing' }).eq('id', jobId)
+
+  try {
     const { count } = await supabase
       .from('registros')
       .select('id_registro', { count: 'exact', head: true })
@@ -103,12 +112,14 @@ export default async (req: Request) => {
       .update({ status: 'completed', csv_content: csvContent, completed_at: new Date().toISOString() })
       .eq('id', jobId)
 
-    console.log(`[export-background] job ${jobId} completado, ${lines.length - 1} filas`)
+    console.log(`[process-export-jobs] job ${jobId} completado, ${lines.length - 1} filas`)
+    return { statusCode: 200, body: `completado: ${lines.length - 1} filas` }
   } catch (err) {
-    console.error('[export-background] error', err)
+    console.error('[process-export-jobs] error', err)
     await supabase
       .from('export_jobs')
       .update({ status: 'failed', error_message: err instanceof Error ? err.message : String(err) })
       .eq('id', jobId)
+    return { statusCode: 500 }
   }
-}
+})
