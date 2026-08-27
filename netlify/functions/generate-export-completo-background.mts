@@ -55,6 +55,8 @@ function rowToCsv(r: Record<string, unknown>): string {
   return values.map(csvEscape).join(',')
 }
 
+export const config = { background: true }
+
 export default async (req: Request) => {
   const { jobId } = await req.json()
 
