@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { validateViewerSession } from '@/lib/viewer-auth'
 import { validateAdminSession } from '@/lib/admin-auth'
+import { logDescarga } from '@/lib/log-descarga'
 import * as XLSX from 'xlsx'
 
 const PAGE_SIZE = 1000
@@ -146,6 +147,8 @@ export async function GET(request: NextRequest) {
     }
 
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+
+    await logDescarga(username, tipo === 'respuestas' ? 'respuestas' : 'registros', campanaId)
 
     return new NextResponse(buf, {
       headers: {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validateViewerSession } from '@/lib/viewer-auth'
 import { validateAdminSession } from '@/lib/admin-auth'
 import { createClient } from '@/lib/supabase/server'
 import { logDescarga } from '@/lib/log-descarga'
@@ -7,13 +8,13 @@ import * as XLSX from 'xlsx'
 const PAGE_SIZE = 1000
 
 export async function GET(request: NextRequest) {
-  if (!validateAdminSession(request)) {
+  const username = validateViewerSession(request) ?? (validateAdminSession(request) ? 'admin' : null)
+  if (!username) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
   const supabase = createClient()
 
-  // Paginar para traer todos los registros
   const allRows: Record<string, unknown>[] = []
   let from = 0
 
@@ -27,6 +28,7 @@ export async function GET(request: NextRequest) {
         'campana_id, warmup_estado, warmup_enviado_at,' +
         'encuesta_campana_id, correo_estado, correo_enviado_at, correo_abierto_at, correo_click_at,' +
         'whatsapp_estado, llamada_estado,' +
+        'recordatorio_campana_id, recordatorio_correo_enviado_at, segundo_contacto_canal,' +
         'estado, encuesta_completada_at, created_at'
       )
       .order('id_registro')
@@ -38,7 +40,6 @@ export async function GET(request: NextRequest) {
     from += PAGE_SIZE
   }
 
-  // Formatear fechas a hora Costa Rica (UTC-6)
   function fmtDate(ts: unknown): string {
     if (!ts) return ''
     try {
@@ -73,12 +74,14 @@ export async function GET(request: NextRequest) {
     'Correo Click':      fmtDate(r.correo_click_at),
     'WhatsApp Estado':   r.whatsapp_estado ?? '',
     'Llamada Estado':    r.llamada_estado ?? '',
+    'Campaña Recordatorio':      r.recordatorio_campana_id ?? '',
+    'Recordatorio Enviado':      fmtDate(r.recordatorio_correo_enviado_at),
+    '2do Contacto Canal':        r.segundo_contacto_canal ?? '',
     'Estado Encuesta':   r.estado,
     'Encuesta Completada': fmtDate(r.encuesta_completada_at),
     'Cargado':           fmtDate(r.created_at),
   }))
 
-  // Resumen por tipo_atencion
   const resumen = ['cirugia', 'consulta', 'procedimiento'].map(tipo => {
     const sub = allRows.filter(r => r.tipo_atencion === tipo)
     return {
@@ -99,13 +102,13 @@ export async function GET(request: NextRequest) {
   const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' })
   const fecha = new Date().toISOString().slice(0, 10)
 
-  await logDescarga('admin', 'consolidado')
+  await logDescarga(username, 'consolidado')
 
   return new NextResponse(buf, {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="CCSS_UTLE_registros_${fecha}.xlsx"`,
+      'Content-Disposition': `attachment; filename="CCSS_UTLE_consolidado_${fecha}.xlsx"`,
       'Cache-Control': 'no-store',
     },
   })

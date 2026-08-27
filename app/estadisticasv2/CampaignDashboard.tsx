@@ -259,6 +259,19 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
     finally { setExp(false) }
   }
 
+  const [expCompleto, setExpCompleto] = useState(false)
+  async function handleExportCompleto() {
+    setExpCompleto(true); setExpErr('')
+    try {
+      const res = await fetch('/api/estadisticas/export-completo')
+      if (!res.ok) { setExpErr('Error al exportar'); return }
+      const blob = await res.blob()
+      const fecha = new Date().toISOString().slice(0, 10)
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `CCSS_UTLE_consolidado_${fecha}.xlsx`; a.click(); URL.revokeObjectURL(a.href)
+    } catch { setExpErr('Error de conexión') }
+    finally { setExpCompleto(false) }
+  }
+
   const totalMax   = especialidades[0]?.total_piloto ?? 1
   const totalOsMax = Math.max(...Object.values(dispositivos.os), 1)
   const totalBrMax = Math.max(...Object.values(dispositivos.browser), 1)
@@ -363,7 +376,10 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
               )}
             </>
           )}
-          <span style={{ fontSize:11, color:'#89B8DC', marginLeft:'auto' }}>
+          <button onClick={handleExportCompleto} disabled={expCompleto} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.15)', color:'#fff', cursor:'pointer', fontWeight:700, marginLeft:'auto' }}>
+            {expCompleto ? 'Generando…' : '↓ Exportar todo (consolidado)'}
+          </button>
+          <span style={{ fontSize:11, color:'#89B8DC' }}>
             Actualiza en {cd}s &nbsp;
             <button onClick={refresh} style={{ fontSize:11, color:'#89B8DC', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>Ahora</button>
           </span>
