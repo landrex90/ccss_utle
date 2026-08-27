@@ -396,7 +396,7 @@ export default function CampaignDashboardV2({ campanas, campanaActual, campanaIn
             </>
           )}
           <button onClick={handleExportCompleto} disabled={expCompleto !== 'idle'} style={{ fontSize:11, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(255,255,255,.3)', background:'rgba(255,255,255,.15)', color:'#fff', cursor:'pointer', fontWeight:700, marginLeft:'auto' }}>
-            {expCompleto === 'iniciando' ? 'Iniciando…' : expCompleto === 'generando' ? 'Generando… (puede tardar hasta 3 min)' : '↓ Exportar todo (consolidado)'}
+            {expCompleto === 'iniciando' ? 'Iniciando…' : expCompleto === 'generando' ? 'Generando… (puede tardar varios minutos, puedes seguir navegando)' : '↓ Exportar todo (consolidado)'}
           </button>
           <span style={{ fontSize:11, color:'#89B8DC' }}>
             Actualiza en {cd}s &nbsp;
