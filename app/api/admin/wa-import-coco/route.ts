@@ -113,6 +113,12 @@ function clasificar(row: Record<string, unknown>): Clasificacion {
     return { estadoFinal: 'DEPURADO_RENUNCIA', estadoRegistro: 'DEPURADO_RENUNCIA', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 4 }
   }
 
+  // Paso 4: no está asegurado (botón 3 de "¿Desea continuar?") — respuesta definitiva,
+  // no un abandono. Debe ir ANTES del chequeo genérico de "desea" más abajo.
+  if (desea && desea.toLowerCase().includes('no está asegurado')) {
+    return { estadoFinal: 'NO_ASEGURADO', estadoRegistro: 'NO_ASEGURADO', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 4 }
+  }
+
   // Completó el flujo → ACTIVO
   if (estadoCoco && estadoCoco.toLowerCase().includes('complet')) {
     return { estadoFinal: 'ACTIVO', estadoRegistro: 'ACTIVO', waEstado: 'respondio', hasInteraction: true, pasoAbandono: null }
@@ -175,9 +181,11 @@ function normalizarRespuesta(row: Record<string, unknown>, clasificacion: Clasif
   // paso_4
   const paso4 = desea && (desea.includes('Sí') || desea.includes('Si'))
     ? 'si'
-    : retiro
-      ? 'no_ya_no_deseo'
-      : null
+    : desea && desea.toLowerCase().includes('no está asegurado')
+      ? 'no_asegurado'
+      : retiro
+        ? 'no_ya_no_deseo'
+        : null
 
   // paso_5a
   const paso5a = flex && flex.includes('dispuesto')
