@@ -263,9 +263,10 @@ export async function POST(request: NextRequest) {
 
   const sb = createClient()
 
-  // Construir mapa cédula → registros (maneja cédulas duplicadas)
+  // Construir mapas cédula → registros e id_registro → registro (maneja cédulas duplicadas)
   type RegInfo = { id_registro: string; especialidad: string | null; encuesta_completada_at: string | null }
   const cedulaMap = new Map<string, RegInfo[]>()
+  const idRegistroMap = new Map<string, RegInfo>()
   let from = 0
   while (true) {
     const { data, error } = await sb
@@ -277,13 +278,14 @@ export async function POST(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!data || data.length === 0) break
     for (const r of data) {
-      if (!r.cedula_raw) continue
-      const c = String(r.cedula_raw).trim()
       const entry: RegInfo = {
         id_registro:            r.id_registro as string,
         especialidad:           r.especialidad as string | null,
         encuesta_completada_at: r.encuesta_completada_at as string | null,
       }
+      idRegistroMap.set(entry.id_registro, entry)
+      if (!r.cedula_raw) continue
+      const c = String(r.cedula_raw).trim()
       const arr = cedulaMap.get(c)
       if (arr) arr.push(entry)
       else cedulaMap.set(c, [entry])
@@ -300,19 +302,30 @@ export async function POST(request: NextRequest) {
   const upsertRespuestas: Array<Record<string, unknown>> = []
 
   for (const row of rows) {
-    const cedula = clean(row['id'] ?? row['N° Identificación'] ?? '')
-    if (!cedula) { noMatch++; continue }
+    // Match primario: ID UTLE = id_registro exacto, sin ambigüedad (ni por
+    // cédulas repetidas ni por citas múltiples de la misma persona).
+    const idUtle = clean(row['ID UTLE'] ?? '')
+    const regPorIdUtle = idUtle ? idRegistroMap.get(idUtle) : undefined
 
-    const allRegs = cedulaMap.get(cedula) ?? []
-    if (allRegs.length === 0) { noMatch++; continue }
+    let matchingRegs: RegInfo[]
 
-    // Match por especialidad si está disponible, fallback a todos
-    const cocoEsp = String(row['Especialidad'] ?? '').trim()
-    const matchingRegs = cocoEsp
-      ? (allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp).length > 0
-          ? allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp)
-          : allRegs)
-      : allRegs
+    if (regPorIdUtle) {
+      matchingRegs = [regPorIdUtle]
+    } else {
+      // Fallback: cédula + especialidad (para filas sin ID UTLE o que no matchean)
+      const cedula = clean(row['id'] ?? row['N° Identificación'] ?? '')
+      if (!cedula) { noMatch++; continue }
+
+      const allRegs = cedulaMap.get(cedula) ?? []
+      if (allRegs.length === 0) { noMatch++; continue }
+
+      const cocoEsp = String(row['Especialidad'] ?? '').trim()
+      matchingRegs = cocoEsp
+        ? (allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp).length > 0
+            ? allRegs.filter(r => (r.especialidad ?? '').trim() === cocoEsp)
+            : allRegs)
+        : allRegs
+    }
 
     matched += matchingRegs.length
 
