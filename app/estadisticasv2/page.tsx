@@ -173,28 +173,38 @@ async function getFormSteps(sb: ReturnType<typeof createClient>, campanaId: stri
   }
 }
 
-// Deriva el mapa encuesta→WA directamente desde la BD (sin datos quemados en código)
-async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds: string[]): Promise<Record<string, string>> {
-  const pairs = await Promise.all(
-    campanaIds.map(async (enc) => {
-      const { data } = await sb
-        .from('registros')
-        .select('whatsapp_campana_id, encuesta_campana_id')
-        .eq('encuesta_campana_id', enc)
-        .not('whatsapp_campana_id', 'is', null)
-        .limit(1)
-      const waId = (data?.[0] as Record<string, unknown> | undefined)?.whatsapp_campana_id as string | null
-      return [enc, waId] as [string, string | null]
-    })
-  )
-  return Object.fromEntries(pairs.filter(([, v]) => v !== null)) as Record<string, string>
+// Deriva el mapa encuesta→WA directamente desde la BD (sin datos quemados en código).
+// Una campaña puede tener VARIOS whatsapp_campana_id (uno por lote de envío del 3er
+// contacto) — se recogen todos, no solo el primero, o se pierden respuestas reales.
+async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds: string[]): Promise<Record<string, string[]>> {
+  const map: Record<string, Set<string>> = Object.fromEntries(campanaIds.map(id => [id, new Set<string>()]))
+  const PAGE = 1000
+  const MAX_PAGES = 100 // salvaguarda: hasta 100,000 filas
+  let from = 0
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await sb
+      .from('registros')
+      .select('whatsapp_campana_id, encuesta_campana_id')
+      .not('whatsapp_campana_id', 'is', null)
+      .not('encuesta_campana_id', 'is', null)
+      .range(from, from + PAGE - 1)
+    if (error || !data || data.length === 0) break
+    for (const r of data as Record<string, unknown>[]) {
+      const enc = r.encuesta_campana_id as string
+      const wa  = r.whatsapp_campana_id as string
+      if (map[enc]) map[enc].add(wa)
+    }
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Array.from(v)]))
 }
 
-async function getWaData(sb: ReturnType<typeof createClient>, waCampanaId: string | null): Promise<WaData> {
-  if (!waCampanaId) return { enviados: 0, pendientes: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
+async function getWaData(sb: ReturnType<typeof createClient>, waCampanaIds: string[] | null): Promise<WaData> {
+  if (!waCampanaIds || waCampanaIds.length === 0) return { enviados: 0, pendientes: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
 
-  // select() debe ir antes de eq() para que TS resuelva PostgrestFilterBuilder correctamente
-  const q = () => sb.from('registros').select('*', { count: 'exact', head: true }).eq('whatsapp_campana_id', waCampanaId)
+  // select() debe ir antes de in() para que TS resuelva PostgrestFilterBuilder correctamente
+  const q = () => sb.from('registros').select('*', { count: 'exact', head: true }).in('whatsapp_campana_id', waCampanaIds)
   const [
     { count: total },
     { count: sinCelular },
@@ -238,7 +248,7 @@ async function getEstadosPorCampana(sb: ReturnType<typeof createClient>, campana
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
-async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[], waMap: Record<string, string>): Promise<Record<string, WaData>> {
+async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[], waMap: Record<string, string[]>): Promise<Record<string, WaData>> {
   const results = await Promise.all(campanas.map(c => getWaData(sb, waMap[c.id] ?? null)))
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
