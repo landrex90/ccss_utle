@@ -73,7 +73,8 @@ function parseHourSent(val: unknown): string | null {
 
 type Clasificacion = {
   estadoFinal:   string | null   // código canónico para respuestas.estado_final
-  estadoRegistro: string | null  // para actualizar registros.estado (solo ACTIVO y DEPURADO_RENUNCIA)
+  estadoRegistro: string | null  // para actualizar registros.estado — igual a estadoFinal
+                                  // siempre que este sea un desenlace terminal real
   waEstado:      'respondio' | 'no_respondio' | 'fallido'
   hasInteraction: boolean
   pasoAbandono:  number | null
@@ -95,17 +96,25 @@ function clasificar(row: Record<string, unknown>): Clasificacion {
 
   // Paso 1: rechazó consentimiento
   if (cons === 'No autorizo') {
-    return { estadoFinal: 'NO_AUTORIZO', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 1 }
+    return { estadoFinal: 'NO_AUTORIZO', estadoRegistro: 'NO_AUTORIZO', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 1 }
   }
 
   // Paso 2: falló verificación de identidad
   if (ver && ver.includes('Agotó')) {
-    return { estadoFinal: 'NO_VERIFICADO', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 2 }
+    return { estadoFinal: 'NO_VERIFICADO', estadoRegistro: 'NO_VERIFICADO', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 2 }
+  }
+
+  // Autorizó pero abandonó antes de intentar la verificación (nunca digitó el
+  // código). Es interacción real —homólogo a como UTLEForm.tsx trata este mismo
+  // punto de abandono en el flujo de correo: sin estado_final definitivo, pero
+  // hasInteraction=true—, no "sin respuesta".
+  if (cons === 'Autorizo' && !ver) {
+    return { estadoFinal: null, estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 2 }
   }
 
   // Paso 3: información incorrecta (datos_incorrectos tiene texto)
   if (incorrectos) {
-    return { estadoFinal: 'INFO_INCORRECTA', estadoRegistro: null, waEstado: 'respondio', hasInteraction: true, pasoAbandono: 3 }
+    return { estadoFinal: 'INFO_INCORRECTA', estadoRegistro: 'INFO_INCORRECTA', waEstado: 'respondio', hasInteraction: true, pasoAbandono: 3 }
   }
 
   // Paso 4: se retiró de lista
@@ -145,6 +154,7 @@ function clasificar(row: Record<string, unknown>): Clasificacion {
 // ── Normalización de campos a códigos canónicos ───────────────────────────────
 
 function normalizarRespuesta(row: Record<string, unknown>, clasificacion: Clasificacion) {
+  const cons       = clean(row['Consentimiento informado'])
   const ver        = clean(row['Verificación de identidad'])
   const datos      = clean(row['Datos del caso'])
   const desea      = clean(row['¿Desea continuar con esta atención pendiente?'])
@@ -157,10 +167,11 @@ function normalizarRespuesta(row: Record<string, unknown>, clasificacion: Clasif
 
   const { estadoFinal, pasoAbandono, hasInteraction } = clasificacion
 
-  // paso_1: si llegaron al paso 2+ autorizaron implícitamente
-  const paso1 = estadoFinal === 'NO_AUTORIZO'
+  // paso_1: refleja directamente la respuesta de consentimiento del paciente,
+  // sin depender de si avanzó a pasos posteriores.
+  const paso1 = cons === 'No autorizo'
     ? 'no_autorizo'
-    : hasInteraction && estadoFinal !== 'NO_AUTORIZO' && ver !== null
+    : cons === 'Autorizo'
       ? 'si_autorizo'
       : null
 
@@ -357,7 +368,10 @@ export async function POST(request: NextRequest) {
       if (clasificacion.hasInteraction && hourSent) {
         updReg.whatsapp_respondio_at = hourSent
       }
-      if (clasificacion.estadoFinal === 'ACTIVO' && !yaCompletoPorCorreo && hourSent) {
+      // encuesta_completada_at = "llegó a un desenlace terminal real", no solo ACTIVO —
+      // debe reflejar cualquier respuesta definitiva (NO_AUTORIZO, INFO_INCORRECTA, etc.),
+      // igual que ya hace el canal de llamadas.
+      if (clasificacion.estadoFinal && !yaCompletoPorCorreo && hourSent) {
         updReg.encuesta_completada_at = hourSent
       }
       if (clasificacion.estadoRegistro) {
