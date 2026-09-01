@@ -200,11 +200,17 @@ async function getWaEncuestaMap(sb: ReturnType<typeof createClient>, campanaIds:
   return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, Array.from(v)]))
 }
 
-async function getWaData(sb: ReturnType<typeof createClient>, waCampanaIds: string[] | null): Promise<WaData> {
+async function getWaData(sb: ReturnType<typeof createClient>, waCampanaIds: string[] | null, encuestaCampanaId: string): Promise<WaData> {
   if (!waCampanaIds || waCampanaIds.length === 0) return { enviados: 0, pendientes: 0, respondio: 0, no_respondio: 0, entregados: 0, leidos: 0, activo: 0, depurado_renuncia: 0, no_autorizo: 0, no_verificado: 0 }
 
-  // select() debe ir antes de in() para que TS resuelva PostgrestFilterBuilder correctamente
-  const q = () => sb.from('registros').select('*', { count: 'exact', head: true }).in('whatsapp_campana_id', waCampanaIds)
+  // select() debe ir antes de in()/eq() para que TS resuelva PostgrestFilterBuilder correctamente.
+  // El 3er contacto por WhatsApp no respeta la campaña de encuesta original (un mismo lote puede
+  // traer registros de ENCUESTA-PROC-01 y ENCUESTA-PROC-02 mezclados), así que un whatsapp_campana_id
+  // puede pertenecer a varias encuesta_campana_id a la vez. Sin el filtro por encuesta_campana_id acá,
+  // esos registros se cuentan una vez por cada campaña que comparte el lote — doble conteo.
+  const q = () => sb.from('registros').select('*', { count: 'exact', head: true })
+    .in('whatsapp_campana_id', waCampanaIds)
+    .eq('encuesta_campana_id', encuestaCampanaId)
   const [
     { count: total },
     { count: sinCelular },
@@ -249,7 +255,7 @@ async function getEstadosPorCampana(sb: ReturnType<typeof createClient>, campana
 }
 
 async function getWaPorCampana(sb: ReturnType<typeof createClient>, campanas: CampanaInfo[], waMap: Record<string, string[]>): Promise<Record<string, WaData>> {
-  const results = await Promise.all(campanas.map(c => getWaData(sb, waMap[c.id] ?? null)))
+  const results = await Promise.all(campanas.map(c => getWaData(sb, waMap[c.id] ?? null, c.id)))
   return Object.fromEntries(campanas.map((c, i) => [c.id, results[i]]))
 }
 
@@ -332,7 +338,7 @@ export default async function EstadisticasV2Page({ searchParams }: Props) {
     getDispositivos(sb, campanaActual),
     getFormSteps(sb, campanaActual),
     getProximaFase(sb, campanaActual, campanaInfo.completado),
-    getWaData(sb, waMap[campanaActual] ?? null),
+    getWaData(sb, waMap[campanaActual] ?? null, campanaActual),
     getEstadosPorCampana(sb, campanas),
     getWaPorCampana(sb, campanas, waMap),
     getLlamadasPendientes(sb, campanaIdsFiltradas),
